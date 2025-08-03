@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 
 @Entity
 @Table(name = "answers")
@@ -15,13 +16,14 @@ public class Answer {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(columnDefinition = "TEXT", nullable = false)
+    @Lob
+    @Column(nullable = false)
     private String answerText;
 
-    @Column(name = "is_correct")
+    @Column(nullable = false)
     private Boolean isCorrect;
 
-    @Column(name = "answer_order")
+    @Column(nullable = false)
     private Integer answerOrder;
 
     @ManyToOne(fetch = FetchType.LAZY)

@@ -11,13 +11,10 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class ExamGenerationRequestDTO {
-    private String examTitle;
-    private String examDescription;
-    private Long chapterId;
-    private Integer numberOfQuestions;
-    private Integer durationMinutes;
+public class QuestionUpdateRequestDTO {
+    private String questionText;
+    private QuestionType questionType;
+    private Integer points;
     private DifficultyLevel difficultyLevel;
-    private List<QuestionType> questionTypes;
+    private List<AnswerDTO> answers;
 }
-

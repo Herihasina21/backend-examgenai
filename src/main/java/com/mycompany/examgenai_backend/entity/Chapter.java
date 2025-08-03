@@ -5,8 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
-import java.util.List;
+import java.time.LocalDate;
 
 @Entity
 @Table(name = "chapters")
@@ -21,31 +20,24 @@ public class Chapter {
     @Column(nullable = false)
     private String title;
 
-    @Column(columnDefinition = "TEXT")
-    private String content;
+    @Lob
+    private String content; // Extracted text content from the course file
 
-    @Column(name = "chapter_number")
+    @Column(nullable = false)
     private Integer chapterNumber;
 
-    @Column(name = "page_start")
     private Integer pageStart;
-
-    @Column(name = "page_end")
     private Integer pageEnd;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "course_id", nullable = false)
     private Course course;
 
-    @OneToMany(mappedBy = "chapter", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<Exam> exams;
-
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
+    private LocalDate createdAt;
 
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
+        createdAt = LocalDate.now();
     }
 }
 

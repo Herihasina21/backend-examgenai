@@ -1,5 +1,5 @@
 package com.mycompany.examgenai_backend.enums;
 
 public enum QuestionType {
-    PDF, WORD, TEXT
+    MULTIPLE_CHOICE, OPEN_ENDED, TRUE_FALSE, FILL_IN_BLANK,
 }

@@ -22,17 +22,17 @@ public class Exam {
     @Column(nullable = false)
     private String title;
 
-    @Column(columnDefinition = "TEXT")
+    @Lob
     private String description;
 
-    @Column(name = "total_questions")
+    @Column(nullable = false)
     private Integer totalQuestions;
 
-    @Column(name = "duration_minutes")
+    @Column(nullable = false)
     private Integer durationMinutes;
 
-    @Column(name = "difficulty_level")
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private DifficultyLevel difficultyLevel;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -40,26 +40,16 @@ public class Exam {
     private Course course;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "chapter_id")
+    @JoinColumn(name = "chapter_id", nullable = false)
     private Chapter chapter;
 
-    @OneToMany(mappedBy = "exam", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<Question> questions;
-
-    @Column(name = "created_at")
     private LocalDateTime createdAt;
 
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
+    @OneToMany(mappedBy = "exam", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Question> questions;
 
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
-        updatedAt = LocalDateTime.now();
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
     }
 }
