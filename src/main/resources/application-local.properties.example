@@ -1,0 +1,8 @@
+# Copier ce fichier vers application-local.properties et adapter les valeurs.
+# application-local.properties est ignoré par Git — ne pas le committer.
+
+spring.datasource.password=votre_mot_de_passe_postgresql
+
+# Optionnel — génération IA (Herihasina)
+# openai.api-key=sk-votre-cle
+# openai.model=gpt-4o-mini
