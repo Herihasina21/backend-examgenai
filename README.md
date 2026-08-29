@@ -1,311 +1,176 @@
 # ExamGenAI — Backend
 
-Générateur d'examens personnalisés par chapitre avec IA (Spring Boot + PostgreSQL).
+Backend du projet de génération d'examens par chapitre (Spring Boot, PostgreSQL, OpenAI).
 
-**Équipe :** Ladina · Herihasina · Tsiory · **Master 1 — Génie Logiciel Avancé (2026)**
+Projet GLA — Master 1, 2026.
+
+## Équipe
 
 | Membre | Rôle | Branche |
 |--------|------|---------|
-| **Ladina** | Extraction chapitres + pages Upload/Cours | `feat/chapter-extraction` |
-| **Herihasina** | Génération IA + page Génération examen | `feat/ai-generation` |
-| **Tsiory** | CRUD questions, Export + pages Édition/Export | `feat/question-crud` |
+| Ladina | Extraction des chapitres, pages Upload/Cours | `feat/chapter-extraction` |
+| Herihasina | Génération IA, API examens | `feat/ai-generation` |
+| Tsiory | CRUD questions, export PDF/Word | `feat/question-crud` |
 
----
+## Fonctionnement
 
-## Description
-
-Application backend qui permet de :
-
-1. Uploader un cours (PDF, Word, TXT)
-2. Extraire automatiquement les chapitres
-3. Générer un examen via OpenAI (QCM, vrai/faux, questions ouvertes)
-4. Modifier les questions générées
-5. Exporter l'examen en PDF ou Word
+1. Upload d'un cours (PDF, Word ou TXT)
+2. Extraction des chapitres
+3. Génération d'un examen via OpenAI (QCM, vrai/faux, questions ouvertes)
+4. Modification des questions
+5. Export en PDF ou Word
 
 ```
-Upload → Extraction chapitres → Génération IA → Édition → Export
+Upload → Chapitres → Génération IA → Édition → Export
 ```
 
-> Plan détaillé par étape : voir [PLAN_PROJET.md](./PLAN_PROJET.md)
+Le détail des étapes et des endpoints est dans [PLAN_PROJET.md](./PLAN_PROJET.md) (fichier local, non versionné).
 
----
+## Technologies
 
-## Stack technique
-
-| Couche | Technologie |
-|--------|-------------|
-| Backend | Java 21, Spring Boot 3.5 |
-| Base de données | PostgreSQL |
-| Extraction documents | Apache PDFBox, Apache POI |
-| IA | OpenAI GPT API |
-| Frontend (à venir) | React + Vite |
-
----
+- Java 21, Spring Boot 3.5
+- PostgreSQL
+- Apache PDFBox, Apache POI (lecture des documents)
+- OpenAI GPT API
+- Frontend prévu en React (repo séparé)
 
 ## Prérequis
 
 - Java 21
 - Maven 3.9+
-- PostgreSQL (base `examgenai`)
-
----
+- PostgreSQL avec une base nommée `examgenai`
 
 ## Installation
 
-### 1. Cloner le repo
+### Cloner le dépôt
 
 ```bash
-git clone <url-du-repo>
+git clone git@github.com:Herihasina21/backend-examgenai.git
 cd backend-examgenai
 ```
 
-### 2. Configuration locale
+### Configuration locale
 
-Créer `src/main/resources/application-local.properties` (fichier ignoré par Git) :
+Chacun utilise son propre mot de passe PostgreSQL. Il ne doit pas être commité.
+
+```bash
+cp src/main/resources/application-local.properties.example src/main/resources/application-local.properties
+```
+
+Éditer `application-local.properties` :
 
 ```properties
 spring.datasource.password=votre_mot_de_passe
-openai.api-key=sk-votre-cle
 ```
 
-Activer le profil local dans `application.properties` ou lancer avec :
+Le profil `local` est activé dans `application.properties`. Pas besoin d'argument Maven en plus.
 
-```bash
-mvn spring-boot:run -Dspring-boot.run.profiles=local
+Pour la génération IA (Herihasina), ajouter aussi :
+
+```properties
+openai.api-key=sk-...
+openai.model=gpt-4o-mini
 ```
 
-### 3. Lancer l'application
+### Lancer l'application
 
 ```bash
 mvn spring-boot:run
 ```
 
-API disponible sur **http://localhost:8080**
+L'API tourne sur http://localhost:8080
 
-### 4. Tester les endpoints
+### Endpoints principaux
 
 | Méthode | URL | Description |
 |---------|-----|-------------|
-| `POST` | `/api/courses/upload` | Upload d'un cours |
-| `GET` | `/api/courses` | Liste des cours |
-| `GET` | `/api/chapters/course/{courseId}` | Chapitres d'un cours |
+| POST | `/api/courses/upload` | Upload d'un cours |
+| GET | `/api/courses` | Liste des cours |
+| GET | `/api/chapters/course/{courseId}` | Chapitres d'un cours |
+| POST | `/api/exams/generate` | Génération d'examen (en cours) |
 
----
+Tests manuels : Bruno ou Postman.
 
-## Workflow Git (équipe)
+## Git
 
-### Bonnes pratiques (cours GLA)
-
-- Travailler sur des **branches** dédiées, jamais directement sur `main`
-- **Tester** avant de commiter (`mvn test` ou `mvn spring-boot:run`)
-- Messages de commit clairs : `feat:`, `fix:`, `chore:`, `test:`
-- **Pull Request** + review avant merge
-- Mettre à jour sa branche : `git pull origin main`
-
-### Commandes type
+On travaille par branches, pas directement sur `main`.
 
 ```bash
 git checkout main
 git pull origin main
 git checkout -b feat/nom-de-la-fonctionnalite
 
-# ... développement ...
+# développement...
 
 git add .
-git commit -m "feat: description du changement"
+git commit -m "feat: description courte"
 git push -u origin feat/nom-de-la-fonctionnalite
 ```
 
-### Branches en cours
+Conventions de commit : `feat:`, `fix:`, `chore:`, `test:`.
 
-| Branche | Responsable | Tâche |
-|---------|-------------|-------|
-| `feat/chapter-extraction` | Ladina | Contenu réel des chapitres |
-| `feat/ai-generation` | Herihasina | OpenAI + génération examens |
-| `feat/question-crud` | Tsiory | CRUD questions + export |
+Merge via Pull Request après relecture.
 
-### Fichiers à ne jamais committer
+### Fichiers à ne pas committer
 
-- `uploads/` — fichiers uploadés
-- `application-local.properties` — mots de passe, clés API
+- `application-local.properties` (mot de passe, clé OpenAI)
+- `uploads/` (fichiers uploadés)
+- `PLAN_PROJET.md` (notes d'équipe en local)
 
----
+### Fichiers partagés
 
-## Alignement avec les cours GLA
+- `application.properties` (config commune, sans secrets)
+- `application-local.properties.example` (modèle à copier)
 
-Comparaison entre ce que nous faisons sur le projet et ce qu'enseignent les cours **Génie Logiciel Avancé M1 (2026)**.
+## État du projet
 
-### Verdict global
+| Partie | Statut |
+|--------|--------|
+| Upload cours, CRUD cours | Fait |
+| Liste des chapitres | Fait |
+| Contenu réel des chapitres | En cours (Ladina) |
+| Génération IA | En cours (Herihasina) |
+| CRUD questions, export | À faire (Tsiory) |
+| Tests JUnit | À faire |
+| Jenkins / CI | À faire |
+| Frontend React | À faire |
 
-| Thème du cours | Statut | Détail |
-|----------------|--------|--------|
-| Git / SGV | ✅ En place | Branches, PR, merge, collaboration à 3 |
-| Refactoring | ⚠️ À faire | `CourseService` à découper avant nouvelles features |
-| Tests JUnit | ❌ À faire | Un seul test smoke (`contextLoads`) |
-| Jenkins / CI | ❌ À faire | Pas de pipeline automatisé |
+## Cours GLA
 
----
+Le projet suit les pratiques vues en cours :
 
-### Git — ✅ Conforme
+- **Git** : branches, merge, travail à plusieurs — déjà en place
+- **Refactoring** : prévu sur `CourseService` (extraction PDF/chapitres)
+- **JUnit** : un test de démarrage pour l'instant, à compléter
+- **Jenkins** : pipeline Maven à mettre en place plus tard
 
-**Cours :** *Initiation GIT*, *Systèmes de gestion de version*
-
-- Travailler par branches
-- Fusionner via merge / Pull Request
-- Commits cohérents avec messages explicites
-- Collaboration à plusieurs sur un dépôt distribué
-
-**Ce que nous faisons :**
-
-- Branche `fix/file-upload-config` → PR #1 → merge sur `main` ✅
-- Messages `feat:`, `fix:` ✅
-- `.gitignore` pour secrets et uploads ✅
-- Équipe synchronisée via `git pull origin main` ✅
-
----
-
-### Refactoring — ⚠️ Partiel
-
-**Cours :** *Refactoring GLA M1*, *TP Refactoring*
-
-- Améliorer le code **sans changer le comportement**
-- Extraire méthodes / classes quand une classe grossit
-- Refactoriser **avant** d'ajouter des fonctionnalités
-- Historiser chaque étape dans Git
-
-**État actuel :**
-
-`CourseService` cumule upload, extraction PDF/Word/TXT, détection chapitres et persistance BDD.
-
-**Actions prévues :**
-
-- [ ] Extraire `FileTextExtractor` (PDF, Word, TXT)
-- [ ] Extraire `ChapterExtractionService`
-- [ ] Renommer `createChaptersFromTitles` → `createChaptersFromText`
-- [ ] Commit Git à chaque petit refactoring
-
----
-
-### Tests JUnit — ❌ À implémenter
-
-**Cours :** *TP Tests unitaires avec JUnit*
-
-- Approche **coder → tester → coder → tester**
-- Tests unitaires avec `@Test`, `@Before`, assertions
-- `mvn test` doit passer avant chaque merge
-
-**État actuel :**
-
-Un seul test dans `ExamgenaiBackendApplicationTests` :
-
-```java
-@Test
-void contextLoads() { }
-```
-
-**Tests à ajouter :**
-
-| Classe | Tests prévus |
-|--------|--------------|
-| `CourseService` | `extractChapterTitles`, `uploadCourseFile` |
-| `ChapterService` | `getChaptersByCourse` |
-| `ExamService` | `generateExam` (mock OpenAI) |
-| `QuestionService` | CRUD questions |
-
-**Commande :**
-
-```bash
-mvn test
-```
-
----
-
-### Jenkins / Intégration continue — ❌ À mettre en place
-
-**Cours :** *Intégration continue avec Jenkins*, *TP0/TP1 Jenkins*
-
-- Job Jenkins lié au dépôt Git
-- Build automatique à chaque push
-- Exécution de `mvn test`
-- Historique des builds
-
-**État actuel :** lancement manuel uniquement (`mvn spring-boot:run`).
-
-**Étapes prévues :**
-
-1. [ ] Installer Jenkins
-2. [ ] Créer un job Maven ou Pipeline
-3. [ ] Lier le repo GitHub
-4. [ ] Pipeline : `mvn clean test` → `mvn package`
-5. [ ] (Optionnel) SonarQube pour la qualité de code
-
-**Exemple de `Jenkinsfile` :**
+Exemple minimal de pipeline :
 
 ```groovy
 pipeline {
     agent any
     stages {
         stage('Build & Test') {
-            steps {
-                sh 'mvn clean test'
-            }
-        }
-        stage('Package') {
-            steps {
-                sh 'mvn package -DskipTests'
-            }
+            steps { sh 'mvn clean test' }
         }
     }
 }
 ```
 
----
-
-## Plan de développement
-
-| Priorité | Tâche | Branche | Cours associé |
-|----------|-------|---------|---------------|
-| 🔴 1 | Extraction contenu chapitres | `feat/chapter-extraction` | Refactoring + JUnit |
-| 🔴 2 | Génération IA (OpenAI) | `feat/ai-generation` | JUnit (mock API) |
-| 🟡 3 | CRUD questions | `feat/question-crud` | JUnit |
-| 🟡 4 | Export PDF/Word | `feat/export` | JUnit |
-| 🟢 5 | Frontend React | repo séparé | — |
-| 🟢 6 | Jenkins CI | `chore/jenkins-pipeline` | TP Jenkins |
-
-Détail complet : [PLAN_PROJET.md](./PLAN_PROJET.md)
-
----
-
-## Structure du projet
+## Structure
 
 ```
 src/main/java/com/mycompany/examgenai_backend/
-├── config/          # Security, CORS, ModelMapper
-├── controller/      # REST API
-├── dto/             # Data Transfer Objects
-├── entity/          # Entités JPA
-├── enums/           # FileType, QuestionType, DifficultyLevel
-├── exception/       # GlobalExceptionHandler
-├── repository/      # Spring Data JPA
-└── service/         # Logique métier
+├── config/
+├── controller/
+├── dto/
+├── entity/
+├── enums/
+├── exception/
+├── repository/
+└── service/
 ```
-
----
-
-## Ressources cours GLA
-
-| Document | Sujet |
-|----------|-------|
-| Initiation GIT 2026 | Branches, merge, conflits, bonnes pratiques |
-| Systèmes de gestion de version | Concepts SGV, modèles distribués |
-| Refactoring GLA M1 | Techniques de refactoring |
-| TP Refactoring | Exercices Eclipse + Git |
-| TP Tests unitaires JUnit | TDD, Money/MoneyBag |
-| Intégration continue Jenkins | CI, jobs, plugins |
-| TP0/TP1 Jenkins | Installation, pipeline Maven |
-
----
 
 ## Licence
 
-Projet académique — Master 1 ENI / GLA 2026.
+Projet académique — Master 1 GLA 2026.
