@@ -1,44 +1,59 @@
 package com.mycompany.examgenai_backend.entity;
 
 import com.mycompany.examgenai_backend.enums.DifficultyLevel;
-import com.mycompany.examgenai_backend.enums.QuestionType;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.Builder;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
 @Table(name = "questions")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class Question {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Lob
-    @Column(nullable = false)
-    private String questionText;
+    @Column(nullable = false, columnDefinition = "TEXT")
+    private String statement;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 20)
     private QuestionType questionType;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private DifficultyLevel difficulty;
 
     @Column(nullable = false)
     private Integer points;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private DifficultyLevel difficultyLevel;
+    @ElementCollection
+    @CollectionTable(
+            name = "question_options",
+            joinColumns = @JoinColumn(name = "question_id")
+    )
+    @Column(name = "option_text", columnDefinition = "TEXT")
+    @Builder.Default
+    private List<String> options = new ArrayList<>();
+
+    @Column(nullable = false, columnDefinition = "TEXT")
+    private String correctAnswer;
+
+    @Column(columnDefinition = "TEXT")
+    private String explanation;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "exam_id", nullable = false)
     private Exam exam;
-
-    @OneToMany(mappedBy = "question", cascade = CascadeType.ALL, orphanRemoval = true)
-    @OrderBy("answerOrder ASC")
-    private List<Answer> answers;
 }
