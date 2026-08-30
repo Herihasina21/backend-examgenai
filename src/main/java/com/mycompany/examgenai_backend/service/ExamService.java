@@ -19,13 +19,26 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
 @Transactional
 public class ExamService {
 
+    // Ancien message placeholder, avant l'implémentation de l'extraction réelle des
+    // chapitres (voir ChapterExtractor). Conservé au cas où d'anciennes données en
+    // base contiendraient encore cette valeur.
     private static final String LEGACY_PLACEHOLDER = "Contenu extrait automatiquement ou vide.";
+
+    // Un chapitre dont le contenu correspond à l'un de ces messages n'a rien
+    // d'exploitable à envoyer à Gemini : mieux vaut échouer proprement ici que
+    // de générer des questions à partir d'un message d'erreur interne.
+    private static final Set<String> UNUSABLE_CHAPTER_CONTENTS = Set.of(
+            LEGACY_PLACEHOLDER,
+            ChapterExtractor.EMPTY_CONTENT_FALLBACK,
+            ChapterExtractor.EMPTY_DOCUMENT_FALLBACK
+    );
 
     @Autowired
     private ExamRepository examRepository;
@@ -111,8 +124,8 @@ public class ExamService {
         if (content == null || content.isBlank()) {
             throw new RuntimeException("Le chapitre ne contient pas de texte exploitable pour la génération");
         }
-        if (LEGACY_PLACEHOLDER.equals(content.trim())) {
-            throw new RuntimeException("Le contenu du chapitre n'a pas encore été extrait. Ré-uploadez le cours ou attendez la mise à jour du chapitre.");
+        if (UNUSABLE_CHAPTER_CONTENTS.contains(content.trim())) {
+            throw new RuntimeException("Le contenu de ce chapitre n'a pas pu être extrait correctement. Ré-uploadez le cours ou vérifiez son contenu avant de générer un examen.");
         }
     }
 

@@ -13,8 +13,12 @@ import java.util.regex.Pattern;
 public class ChapterExtractor {
 
     private static final String DEFAULT_CHAPTER_TITLE = "Cours complet";
-    private static final String EMPTY_CONTENT_FALLBACK = "Ce chapitre ne contient pas de texte détectable.";
-    private static final String EMPTY_DOCUMENT_FALLBACK = "Aucun contenu n'a pu être extrait de ce document.";
+
+    // Publics car réutilisés ailleurs (ex. ExamService) pour détecter un chapitre
+    // sans contenu exploitable avant d'appeler l'IA. Garder ces deux constantes en
+    // phase avec le contenu réellement produit ci-dessous.
+    public static final String EMPTY_CONTENT_FALLBACK = "Ce chapitre ne contient pas de texte détectable.";
+    public static final String EMPTY_DOCUMENT_FALLBACK = "Aucun contenu n'a pu être extrait de ce document.";
 
     private static final Pattern CHAPTER_TITLE_PATTERN = Pattern.compile(
             "(?im)^\\s*(Chapitre|CHAPITRE|Chap|CH)\\s*[\\dIVXLC]+\\s*[:\\-]?\\s*(.*)$",
