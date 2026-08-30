@@ -26,12 +26,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Transactional
@@ -43,6 +40,8 @@ public class CourseService {
     private ChapterRepository chapterRepository;
     @Autowired
     private ModelMapper modelMapper;
+    @Autowired
+    private ChapterExtractor chapterExtractor;
 
     @Value("${file.upload-dir}")
     private String uploadDir;
@@ -116,10 +115,9 @@ public class CourseService {
         course.setUpdatedAt(LocalDate.now());
         course = courseRepository.save(course);
 
-        // Extraction automatique du texte et création des chapitres
+        // Extraction du texte puis découpage en chapitres avec leur contenu réel
         String fileText = extractTextFromFile(file, fileExtension);
-        List<String> chaptersTitles = extractChapterTitles(fileText);
-        createChaptersFromTitles(course, chaptersTitles);
+        createChaptersFromText(course, fileText);
 
         return modelMapper.map(course, CourseDTO.class);
     }
@@ -164,28 +162,21 @@ public class CourseService {
         }
     }
 
-    private List<String> extractChapterTitles(String text) {
-        List<String> chapters = new ArrayList<>();
-        Pattern pattern = Pattern.compile("(?im)^\\s*(Chapitre|CHAPITRE|Chap|CH)\\s*[\\dIVXLC]+\\s*[:\\-]?\\s*(.*)$", Pattern.MULTILINE);
-        Matcher matcher = pattern.matcher(text);
-        while (matcher.find()) {
-            String title = matcher.group(2).trim();
-            if (!title.isEmpty()) {
-                chapters.add(title);
-            } else {
-                chapters.add(matcher.group(0).trim());
-            }
-        }
-        return chapters;
-    }
+    /**
+     * Découpe le texte extrait entre chaque titre de chapitre et enregistre
+     * un Chapter par section, avec son contenu réel. S'il n'y a aucun titre
+     * détecté, un seul chapitre est créé avec tout le texte du document.
+     * (pageStart / pageEnd restent à faire séparément si besoin, pas indispensables pour l'IA)
+     */
+    private void createChaptersFromText(Course course, String text) {
+        List<ChapterExtractor.ExtractedChapter> extractedChapters = chapterExtractor.extract(text);
 
-    private void createChaptersFromTitles(Course course, List<String> chapterTitles) {
         int chapterNumber = 1;
-        for (String title : chapterTitles) {
+        for (ChapterExtractor.ExtractedChapter extracted : extractedChapters) {
             Chapter chapter = new Chapter();
-            chapter.setTitle(title);
+            chapter.setTitle(extracted.title());
             chapter.setChapterNumber(chapterNumber++);
-            chapter.setContent("Contenu extrait automatiquement ou vide.");
+            chapter.setContent(extracted.content());
             chapter.setCourse(course);
             chapter.setCreatedAt(LocalDate.now());
             chapterRepository.save(chapter);
