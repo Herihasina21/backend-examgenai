@@ -1,6 +1,6 @@
 # ExamGenAI — Backend
 
-Backend du projet de génération d'examens par chapitre (Spring Boot, PostgreSQL, OpenAI).
+Backend du projet de génération d'examens par chapitre (Spring Boot, PostgreSQL, Google Gemini).
 
 Projet GLA — Master 1, 2026.
 
@@ -16,7 +16,7 @@ Projet GLA — Master 1, 2026.
 
 1. Upload d'un cours (PDF, Word ou TXT)
 2. Extraction des chapitres
-3. Génération d'un examen via OpenAI (QCM, vrai/faux, questions ouvertes)
+3. Génération d'un examen via Gemini (QCM, vrai/faux, questions ouvertes)
 4. Modification des questions
 5. Export en PDF ou Word
 
@@ -31,7 +31,7 @@ Le détail des étapes et des endpoints est dans [PLAN_PROJET.md](./PLAN_PROJET.
 - Java 21, Spring Boot 3.5
 - PostgreSQL
 - Apache PDFBox, Apache POI (lecture des documents)
-- OpenAI GPT API
+- Google Gemini API (tier gratuit via AI Studio)
 - Frontend prévu en React (repo séparé)
 
 ## Prérequis
@@ -68,9 +68,19 @@ Le profil `local` est activé dans `application.properties`. Pas besoin d'argume
 Pour la génération IA (Herihasina), ajouter aussi :
 
 ```properties
-openai.api-key=sk-...
-openai.model=gpt-4o-mini
+gemini.api-key=AIza... ou AQ...
 ```
+
+Clé gratuite : [Google AI Studio](https://aistudio.google.com/apikey)
+
+### Test de l'IA
+Pour tester la génération d’examens :
+git pull
+Créer une clé gratuite sur https://aistudio.google.com/apikey
+Copier application-local.properties.example → application-local.properties
+Mettre votre mot de passe PostgreSQL + gemini.api-key=...
+mvn spring-boot:run puis POST /api/exams/generate
+
 
 ### Lancer l'application
 
@@ -87,7 +97,9 @@ L'API tourne sur http://localhost:8080
 | POST | `/api/courses/upload` | Upload d'un cours |
 | GET | `/api/courses` | Liste des cours |
 | GET | `/api/chapters/course/{courseId}` | Chapitres d'un cours |
-| POST | `/api/exams/generate` | Génération d'examen (en cours) |
+| POST | `/api/exams/generate` | Génération d'examen (IA) |
+| GET | `/api/exams/{id}` | Détail d'un examen |
+| GET | `/api/exams/chapter/{chapterId}` | Examens d'un chapitre |
 
 Tests manuels : Bruno ou Postman.
 
@@ -113,7 +125,7 @@ Merge via Pull Request après relecture.
 
 ### Fichiers à ne pas committer
 
-- `application-local.properties` (mot de passe, clé OpenAI)
+- `application-local.properties` (mot de passe, clé Gemini)
 - `uploads/` (fichiers uploadés)
 - `PLAN_PROJET.md` (notes d'équipe en local)
 
