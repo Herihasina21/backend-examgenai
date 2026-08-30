@@ -4,9 +4,13 @@ import com.mycompany.examgenai_backend.dto.CourseDTO;
 import com.mycompany.examgenai_backend.entity.Chapter;
 import com.mycompany.examgenai_backend.entity.Course;
 import com.mycompany.examgenai_backend.enums.FileType;
+import com.mycompany.examgenai_backend.exception.BadRequestException;
+import com.mycompany.examgenai_backend.exception.ResourceNotFoundException;
 import com.mycompany.examgenai_backend.repository.ChapterRepository;
 import com.mycompany.examgenai_backend.repository.CourseRepository;
 import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.apache.poi.hwpf.HWPFDocument;
@@ -14,7 +18,6 @@ import org.apache.poi.hwpf.extractor.WordExtractor;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.extractor.XWPFWordExtractor;
 import org.modelmapper.ModelMapper;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -28,20 +31,22 @@ import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Transactional
 @Service
+@RequiredArgsConstructor
 public class CourseService {
-    @Autowired
-    private CourseRepository courseRepository;
-    @Autowired
-    private ChapterRepository chapterRepository;
-    @Autowired
-    private ModelMapper modelMapper;
-    @Autowired
-    private ChapterExtractor chapterExtractor;
+
+    private static final Set<String> ALLOWED_EXTENSIONS = Set.of("PDF", "DOC", "DOCX", "TXT");
+
+    private final CourseRepository courseRepository;
+    private final ChapterRepository chapterRepository;
+    private final ModelMapper modelMapper;
+    private final ChapterExtractor chapterExtractor;
 
     @Value("${file.upload-dir}")
     private String uploadDir;
@@ -69,7 +74,7 @@ public class CourseService {
     @Transactional
     public CourseDTO updateCourse(Long id, CourseDTO courseDetailsDto) {
         Course course = courseRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Cours non trouvé avec l'id " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Cours introuvable avec id: " + id));
 
         modelMapper.map(courseDetailsDto, course);
         course.setUpdatedAt(LocalDate.now());
@@ -80,12 +85,12 @@ public class CourseService {
     @Transactional
     public void deleteCourse(Long id) {
         Course course = courseRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Cours non trouvé avec l'id " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Cours introuvable avec id: " + id));
         if (course.getFilePath() != null) {
             try {
                 Files.deleteIfExists(Paths.get(course.getFilePath()));
             } catch (IOException e) {
-                System.err.println("Impossible de supprimer le fichier: " + course.getFilePath() + " - " + e.getMessage());
+                log.warn("Impossible de supprimer le fichier {} : {}", course.getFilePath(), e.getMessage());
             }
         }
         courseRepository.delete(course);
@@ -93,33 +98,50 @@ public class CourseService {
 
     @Transactional
     public CourseDTO uploadCourseFile(MultipartFile file, String title, String description) throws IOException {
+        validateUpload(file, title);
+
         Path uploadPath = Paths.get(uploadDir).toAbsolutePath().normalize();
         Files.createDirectories(uploadPath);
 
         String originalFilename = file.getOriginalFilename();
-        String fileExtension = "";
-        if (originalFilename != null && originalFilename.contains(".")) {
-            fileExtension = originalFilename.substring(originalFilename.lastIndexOf(".") + 1).toUpperCase();
-        }
+        String fileExtension = originalFilename.substring(originalFilename.lastIndexOf(".") + 1).toUpperCase();
 
-        String fileName = UUID.randomUUID().toString() + "." + fileExtension;
+        String fileName = UUID.randomUUID() + "." + fileExtension;
         Path filePath = uploadPath.resolve(fileName);
         Files.copy(file.getInputStream(), filePath);
 
         Course course = new Course();
-        course.setTitle(title);
-        course.setDescription(description);
+        course.setTitle(title.trim());
+        course.setDescription(description != null ? description.trim() : null);
         course.setFilePath(filePath.toString());
         course.setFileType(determineFileType(fileExtension));
         course.setCreatedAt(LocalDate.now());
         course.setUpdatedAt(LocalDate.now());
         course = courseRepository.save(course);
 
-        // Extraction du texte puis découpage en chapitres avec leur contenu réel
         String fileText = extractTextFromFile(file, fileExtension);
         createChaptersFromText(course, fileText);
 
         return modelMapper.map(course, CourseDTO.class);
+    }
+
+    private void validateUpload(MultipartFile file, String title) {
+        if (file == null || file.isEmpty()) {
+            throw new BadRequestException("Le fichier est obligatoire.");
+        }
+        if (title == null || title.isBlank()) {
+            throw new BadRequestException("Le titre du cours est obligatoire.");
+        }
+
+        String originalFilename = file.getOriginalFilename();
+        if (originalFilename == null || !originalFilename.contains(".")) {
+            throw new BadRequestException("Le fichier doit avoir une extension (.pdf, .docx, .txt).");
+        }
+
+        String fileExtension = originalFilename.substring(originalFilename.lastIndexOf(".") + 1).toUpperCase();
+        if (!ALLOWED_EXTENSIONS.contains(fileExtension)) {
+            throw new BadRequestException("Type de fichier non pris en charge. Formats acceptés : PDF, Word, TXT.");
+        }
     }
 
     private FileType determineFileType(String fileExtension) {
@@ -158,16 +180,10 @@ public class CourseService {
                     return sb.toString();
                 }
             default:
-                throw new IOException("Type de fichier non pris en charge pour l'extraction de texte: " + fileExtension);
+                throw new BadRequestException("Type de fichier non pris en charge : " + fileExtension);
         }
     }
 
-    /**
-     * Découpe le texte extrait entre chaque titre de chapitre et enregistre
-     * un Chapter par section, avec son contenu réel. S'il n'y a aucun titre
-     * détecté, un seul chapitre est créé avec tout le texte du document.
-     * (pageStart / pageEnd restent à faire séparément si besoin, pas indispensables pour l'IA)
-     */
     private void createChaptersFromText(Course course, String text) {
         List<ChapterExtractor.ExtractedChapter> extractedChapters = chapterExtractor.extract(text);
 
@@ -182,5 +198,4 @@ public class CourseService {
             chapterRepository.save(chapter);
         }
     }
-
 }

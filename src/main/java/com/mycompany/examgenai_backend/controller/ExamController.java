@@ -2,9 +2,11 @@ package com.mycompany.examgenai_backend.controller;
 
 import com.mycompany.examgenai_backend.dto.ExamDTO;
 import com.mycompany.examgenai_backend.dto.ExamGenerationRequestDTO;
+import com.mycompany.examgenai_backend.exception.ResourceNotFoundException;
 import com.mycompany.examgenai_backend.service.ExamService;
 import com.mycompany.examgenai_backend.util.ApiResponse;
-import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -19,13 +21,14 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/exams")
+@RequiredArgsConstructor
 public class ExamController {
 
-    @Autowired
-    private ExamService examService;
+    private final ExamService examService;
 
     @PostMapping("/generate")
-    public ResponseEntity<ApiResponse<ExamDTO>> generateExam(@RequestBody ExamGenerationRequestDTO request) {
+    public ResponseEntity<ApiResponse<ExamDTO>> generateExam(
+            @Valid @RequestBody ExamGenerationRequestDTO request) {
         ExamDTO exam = examService.generateExam(request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(new ApiResponse<>(true, "Examen généré avec succès", exam));
@@ -35,7 +38,7 @@ public class ExamController {
     public ResponseEntity<ApiResponse<ExamDTO>> getExamById(@PathVariable Long id) {
         return examService.getExamById(id)
                 .map(exam -> ResponseEntity.ok(new ApiResponse<>(true, "Examen récupéré avec succès", exam)))
-                .orElseThrow(() -> new RuntimeException("Examen introuvable avec l'id " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Examen introuvable avec id: " + id));
     }
 
     @GetMapping("/chapter/{chapterId}")

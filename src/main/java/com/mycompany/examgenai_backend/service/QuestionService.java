@@ -17,12 +17,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
-/**
- * Service métier pour la gestion CRUD des questions.
- * ⚠️ Ceci remplace toute ancienne version de ce fichier basée sur
- * QuestionRequest / optionA-D — cette architecture utilise une liste
- * générique d'options (adaptée au QCM à nombre variable de choix).
- */
 @Service
 @RequiredArgsConstructor
 public class QuestionService {
@@ -35,9 +29,9 @@ public class QuestionService {
     public QuestionDTO create(QuestionCreateDTO dto) {
         Exam exam = examRepository.findById(dto.getExamId())
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Exam introuvable avec id: " + dto.getExamId()));
+                        "Examen introuvable avec id: " + dto.getExamId()));
 
-        validateOptions(dto.getQuestionType(), dto.getOptions());
+        validateQuestion(dto.getQuestionType(), dto.getOptions(), dto.getCorrectAnswer());
 
         Question question = Question.builder()
                 .statement(dto.getStatement())
@@ -51,13 +45,14 @@ public class QuestionService {
                 .build();
 
         Question saved = questionRepository.save(question);
+        syncTotalQuestions(exam);
         return questionMapper.toDTO(saved);
     }
 
     @Transactional(readOnly = true)
     public List<QuestionDTO> getByExam(Long examId) {
         if (!examRepository.existsById(examId)) {
-            throw new ResourceNotFoundException("Exam introuvable avec id: " + examId);
+            throw new ResourceNotFoundException("Examen introuvable avec id: " + examId);
         }
         return questionRepository.findByExamId(examId)
                 .stream()
@@ -67,15 +62,14 @@ public class QuestionService {
 
     @Transactional(readOnly = true)
     public QuestionDTO getById(Long id) {
-        Question question = findQuestionOrThrow(id);
-        return questionMapper.toDTO(question);
+        return questionMapper.toDTO(findQuestionOrThrow(id));
     }
 
     @Transactional
     public QuestionDTO update(Long id, QuestionUpdateDTO dto) {
         Question question = findQuestionOrThrow(id);
 
-        validateOptions(dto.getQuestionType(), dto.getOptions());
+        validateQuestion(dto.getQuestionType(), dto.getOptions(), dto.getCorrectAnswer());
 
         question.setStatement(dto.getStatement());
         question.setQuestionType(dto.getQuestionType());
@@ -92,7 +86,9 @@ public class QuestionService {
     @Transactional
     public void delete(Long id) {
         Question question = findQuestionOrThrow(id);
+        Exam exam = question.getExam();
         questionRepository.delete(question);
+        syncTotalQuestions(exam);
     }
 
     private Question findQuestionOrThrow(Long id) {
@@ -101,12 +97,38 @@ public class QuestionService {
                         "Question introuvable avec id: " + id));
     }
 
-    private void validateOptions(QuestionType type, List<String> options) {
+    private void syncTotalQuestions(Exam exam) {
+        long count = questionRepository.countByExamId(exam.getId());
+        exam.setTotalQuestions((int) count);
+        examRepository.save(exam);
+    }
+
+    private void validateQuestion(QuestionType type, List<String> options, String correctAnswer) {
+        if (correctAnswer == null || correctAnswer.isBlank()) {
+            throw new InvalidQuestionException("La réponse correcte est obligatoire");
+        }
+
         if (type == QuestionType.QCM) {
             if (options == null || options.size() < 2) {
-                throw new InvalidQuestionException(
-                        "Une question QCM doit avoir au moins 2 options");
+                throw new InvalidQuestionException("Une question QCM doit avoir au moins 2 options");
             }
+            assertCorrectAnswerInOptions(options, correctAnswer);
+            return;
+        }
+
+        if (type == QuestionType.TRUE_FALSE) {
+            if (options == null || options.size() != 2) {
+                throw new InvalidQuestionException("Une question Vrai/Faux doit avoir exactement 2 options");
+            }
+            assertCorrectAnswerInOptions(options, correctAnswer);
+        }
+    }
+
+    private void assertCorrectAnswerInOptions(List<String> options, String correctAnswer) {
+        boolean found = options.stream()
+                .anyMatch(option -> option != null && option.trim().equals(correctAnswer.trim()));
+        if (!found) {
+            throw new InvalidQuestionException("La bonne réponse doit correspondre à une option existante");
         }
     }
 }

@@ -1,9 +1,10 @@
 package com.mycompany.examgenai_backend.controller;
 
 import com.mycompany.examgenai_backend.dto.CourseDTO;
+import com.mycompany.examgenai_backend.exception.ResourceNotFoundException;
 import com.mycompany.examgenai_backend.service.CourseService;
 import com.mycompany.examgenai_backend.util.ApiResponse;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,9 +15,10 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/courses")
+@RequiredArgsConstructor
 public class CourseController {
-    @Autowired
-    private CourseService courseService;
+
+    private final CourseService courseService;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<CourseDTO>>> getAllCourses() {
@@ -28,17 +30,20 @@ public class CourseController {
     public ResponseEntity<ApiResponse<CourseDTO>> getCourseById(@PathVariable Long id) {
         return courseService.getCourseById(id)
                 .map(course -> ResponseEntity.ok(new ApiResponse<>(true, "Cours récupéré avec succès", course)))
-                .orElseThrow(() -> new RuntimeException("Cours introuvable"));
+                .orElseThrow(() -> new ResourceNotFoundException("Cours introuvable avec id: " + id));
     }
 
     @PostMapping
-    public ResponseEntity<ApiResponse<CourseDTO>> createCourse(@RequestBody CourseDTO CourseDTO) {
-        CourseDTO createdCourse = courseService.createCourse(CourseDTO);
-        return ResponseEntity.status(HttpStatus.CREATED).body(new ApiResponse<>(true, "Cours créé avec succès", createdCourse));
+    public ResponseEntity<ApiResponse<CourseDTO>> createCourse(@RequestBody CourseDTO courseDTO) {
+        CourseDTO createdCourse = courseService.createCourse(courseDTO);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(new ApiResponse<>(true, "Cours créé avec succès", createdCourse));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<CourseDTO>> updateCourse(@PathVariable Long id, @RequestBody CourseDTO courseDetailsDto) {
+    public ResponseEntity<ApiResponse<CourseDTO>> updateCourse(
+            @PathVariable Long id,
+            @RequestBody CourseDTO courseDetailsDto) {
         CourseDTO updatedCourse = courseService.updateCourse(id, courseDetailsDto);
         return ResponseEntity.ok(new ApiResponse<>(true, "Cours mis à jour avec succès", updatedCourse));
     }
@@ -56,6 +61,7 @@ public class CourseController {
             @RequestParam(value = "description", required = false) String description) throws IOException {
 
         CourseDTO newCourse = courseService.uploadCourseFile(file, title, description);
-        return ResponseEntity.status(HttpStatus.CREATED).body(new ApiResponse<>(true, "Cours téléchargé avec succès", newCourse));
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(new ApiResponse<>(true, "Cours téléchargé avec succès", newCourse));
     }
 }

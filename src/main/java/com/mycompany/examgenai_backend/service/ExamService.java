@@ -2,17 +2,19 @@ package com.mycompany.examgenai_backend.service;
 
 import com.mycompany.examgenai_backend.dto.ExamDTO;
 import com.mycompany.examgenai_backend.dto.ExamGenerationRequestDTO;
-import com.mycompany.examgenai_backend.dto.openai.GeneratedAnswerDTO;
-import com.mycompany.examgenai_backend.dto.openai.GeneratedQuestionDTO;
+import com.mycompany.examgenai_backend.dto.gemini.GeneratedAnswerDTO;
+import com.mycompany.examgenai_backend.dto.gemini.GeneratedQuestionDTO;
 import com.mycompany.examgenai_backend.entity.Chapter;
 import com.mycompany.examgenai_backend.entity.Exam;
 import com.mycompany.examgenai_backend.entity.Question;
 import com.mycompany.examgenai_backend.enums.DifficultyLevel;
 import com.mycompany.examgenai_backend.enums.QuestionType;
+import com.mycompany.examgenai_backend.exception.BadRequestException;
+import com.mycompany.examgenai_backend.exception.ResourceNotFoundException;
 import com.mycompany.examgenai_backend.mapper.QuestionMapper;
 import com.mycompany.examgenai_backend.repository.ChapterRepository;
 import com.mycompany.examgenai_backend.repository.ExamRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,45 +25,34 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 @Transactional
 public class ExamService {
 
-    // Ancien message placeholder, avant l'implémentation de l'extraction réelle des
-    // chapitres (voir ChapterExtractor). Conservé au cas où d'anciennes données en
-    // base contiendraient encore cette valeur.
     private static final String LEGACY_PLACEHOLDER = "Contenu extrait automatiquement ou vide.";
 
-    // Un chapitre dont le contenu correspond à l'un de ces messages n'a rien
-    // d'exploitable à envoyer à Gemini : mieux vaut échouer proprement ici que
-    // de générer des questions à partir d'un message d'erreur interne.
     private static final Set<String> UNUSABLE_CHAPTER_CONTENTS = Set.of(
             LEGACY_PLACEHOLDER,
             ChapterExtractor.EMPTY_CONTENT_FALLBACK,
             ChapterExtractor.EMPTY_DOCUMENT_FALLBACK
     );
 
-    @Autowired
-    private ExamRepository examRepository;
-
-    @Autowired
-    private ChapterRepository chapterRepository;
-
-    @Autowired
-    private GeminiService geminiService;
-
-    @Autowired
-    private QuestionMapper questionMapper;
+    private final ExamRepository examRepository;
+    private final ChapterRepository chapterRepository;
+    private final GeminiService geminiService;
+    private final QuestionMapper questionMapper;
 
     public ExamDTO generateExam(ExamGenerationRequestDTO request) {
-        validateGenerationRequest(request);
-
         Chapter chapter = chapterRepository.findById(request.getChapterId())
-                .orElseThrow(() -> new RuntimeException("Chapitre introuvable avec l'id " + request.getChapterId()));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Chapitre introuvable avec id: " + request.getChapterId()));
 
         validateChapterContent(chapter.getContent());
 
         var numberOfQuestions = request.getNumberOfQuestions();
-        var difficulty = request.getDifficultyLevel() != null ? request.getDifficultyLevel() : DifficultyLevel.MEDIUM;
+        var difficulty = request.getDifficultyLevel() != null
+                ? request.getDifficultyLevel()
+                : DifficultyLevel.MEDIUM;
         var questionTypes = resolveQuestionTypes(request.getQuestionTypes());
 
         var generated = geminiService.generateQuestions(
@@ -100,32 +91,19 @@ public class ExamService {
 
     public void deleteExam(Long id) {
         if (!examRepository.existsById(id)) {
-            throw new RuntimeException("Examen introuvable avec l'id " + id);
+            throw new ResourceNotFoundException("Examen introuvable avec id: " + id);
         }
         examRepository.deleteById(id);
     }
 
-    private void validateGenerationRequest(ExamGenerationRequestDTO request) {
-        if (request.getExamTitle() == null || request.getExamTitle().isBlank()) {
-            throw new RuntimeException("Le titre de l'examen est obligatoire");
-        }
-        if (request.getChapterId() == null) {
-            throw new RuntimeException("L'id du chapitre est obligatoire");
-        }
-        if (request.getNumberOfQuestions() == null || request.getNumberOfQuestions() < 1) {
-            throw new RuntimeException("Le nombre de questions doit être au moins 1");
-        }
-        if (request.getDurationMinutes() == null || request.getDurationMinutes() < 1) {
-            throw new RuntimeException("La durée de l'examen doit être au moins 1 minute");
-        }
-    }
-
     private void validateChapterContent(String content) {
         if (content == null || content.isBlank()) {
-            throw new RuntimeException("Le chapitre ne contient pas de texte exploitable pour la génération");
+            throw new BadRequestException("Le chapitre ne contient pas de texte exploitable pour la génération");
         }
         if (UNUSABLE_CHAPTER_CONTENTS.contains(content.trim())) {
-            throw new RuntimeException("Le contenu de ce chapitre n'a pas pu être extrait correctement. Ré-uploadez le cours ou vérifiez son contenu avant de générer un examen.");
+            throw new BadRequestException(
+                    "Le contenu de ce chapitre n'a pas pu être extrait. Ré-uploadez le cours ou vérifiez son contenu."
+            );
         }
     }
 
@@ -136,7 +114,11 @@ public class ExamService {
         return questionTypes;
     }
 
-    private List<Question> buildQuestions(List<GeneratedQuestionDTO> generatedQuestions, Exam exam, DifficultyLevel defaultDifficulty) {
+    private List<Question> buildQuestions(
+            List<GeneratedQuestionDTO> generatedQuestions,
+            Exam exam,
+            DifficultyLevel defaultDifficulty
+    ) {
         List<Question> questions = new ArrayList<>();
 
         for (GeneratedQuestionDTO generatedQuestion : generatedQuestions) {
@@ -165,11 +147,15 @@ public class ExamService {
             Question question = new Question();
             question.setStatement(generatedQuestion.getQuestionText());
             question.setQuestionType(
-                    generatedQuestion.getQuestionType() != null ? generatedQuestion.getQuestionType() : QuestionType.QCM
+                    generatedQuestion.getQuestionType() != null
+                            ? generatedQuestion.getQuestionType()
+                            : QuestionType.QCM
             );
             question.setPoints(generatedQuestion.getPoints() != null ? generatedQuestion.getPoints() : 1);
             question.setDifficulty(
-                    generatedQuestion.getDifficultyLevel() != null ? generatedQuestion.getDifficultyLevel() : defaultDifficulty
+                    generatedQuestion.getDifficultyLevel() != null
+                            ? generatedQuestion.getDifficultyLevel()
+                            : defaultDifficulty
             );
             question.setOptions(options);
             question.setCorrectAnswer(correctAnswer);

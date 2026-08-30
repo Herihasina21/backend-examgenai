@@ -1,10 +1,11 @@
 package com.mycompany.examgenai_backend.service;
 
-
 import com.mycompany.examgenai_backend.dto.ChapterDTO;
+import com.mycompany.examgenai_backend.exception.ResourceNotFoundException;
 import com.mycompany.examgenai_backend.repository.ChapterRepository;
+import com.mycompany.examgenai_backend.repository.CourseRepository;
+import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,13 +15,17 @@ import java.util.stream.Collectors;
 
 @Transactional
 @Service
+@RequiredArgsConstructor
 public class ChapterService {
-    @Autowired
-    private ChapterRepository chapterRepository;
-    @Autowired
-    private ModelMapper modelMapper;
+
+    private final ChapterRepository chapterRepository;
+    private final CourseRepository courseRepository;
+    private final ModelMapper modelMapper;
 
     public List<ChapterDTO> getChaptersByCourse(Long courseId) {
+        if (!courseRepository.existsById(courseId)) {
+            throw new ResourceNotFoundException("Cours introuvable avec id: " + courseId);
+        }
         return chapterRepository.findByCourseId(courseId).stream()
                 .map(chapter -> modelMapper.map(chapter, ChapterDTO.class))
                 .collect(Collectors.toList());

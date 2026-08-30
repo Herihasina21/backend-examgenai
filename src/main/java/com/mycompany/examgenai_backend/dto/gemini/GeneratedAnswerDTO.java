@@ -1,4 +1,4 @@
-package com.mycompany.examgenai_backend.dto.openai;
+package com.mycompany.examgenai_backend.dto.gemini;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

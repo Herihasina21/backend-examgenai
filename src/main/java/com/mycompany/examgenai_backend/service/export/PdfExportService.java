@@ -2,6 +2,7 @@ package com.mycompany.examgenai_backend.service.export;
 
 import com.mycompany.examgenai_backend.entity.Exam;
 import com.mycompany.examgenai_backend.entity.Question;
+import com.mycompany.examgenai_backend.exception.ExportException;
 import com.mycompany.examgenai_backend.exception.ResourceNotFoundException;
 import com.mycompany.examgenai_backend.repository.ExamRepository;
 import lombok.RequiredArgsConstructor;
@@ -33,9 +34,6 @@ public class PdfExportService {
     private static final float LINE_HEIGHT = 16f;
     private static final float BOTTOM_LIMIT = MARGIN + 30f;
 
-    // IMPORTANT : constantes statiques PDType1Font (utilisent WinAnsiEncoding
-    // en interne) — ne pas utiliser new PDType1Font(String, Encoding), ce
-    // constructeur n'existe pas dans PDFBox 2.0.x.
     private static final PDFont FONT_TITLE = PDType1Font.HELVETICA_BOLD;
     private static final PDFont FONT_SUBTITLE = PDType1Font.HELVETICA;
     private static final PDFont FONT_QUESTION = PDType1Font.HELVETICA_BOLD;
@@ -63,7 +61,7 @@ public class PdfExportService {
             return out.toByteArray();
 
         } catch (IOException e) {
-            throw new RuntimeException("Erreur lors de la génération du PDF", e);
+            throw new ExportException("Erreur lors de la génération du PDF", e);
         }
     }
 
