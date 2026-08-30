@@ -2,6 +2,7 @@ package com.mycompany.examgenai_backend.service.export;
 
 import com.mycompany.examgenai_backend.entity.Exam;
 import com.mycompany.examgenai_backend.entity.Question;
+import com.mycompany.examgenai_backend.exception.ExportException;
 import com.mycompany.examgenai_backend.exception.ResourceNotFoundException;
 import com.mycompany.examgenai_backend.repository.ExamRepository;
 import lombok.RequiredArgsConstructor;
@@ -14,13 +15,6 @@ import java.io.IOException;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
-/**
- * Service de génération d'export Word (.docx) d'un examen, via Apache POI.
- * Produit un document avec :
- *  - une page de garde (titre, chapitre, date, durée)
- *  - la liste numérotée des questions avec espace de réponse
- *  - une page de corrigé séparée (réponses + explications)
- */
 @Service
 @RequiredArgsConstructor
 public class DocxExportService {
@@ -30,9 +24,6 @@ public class DocxExportService {
     private static final DateTimeFormatter DATE_FORMATTER =
             DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
-    /**
-     * Génère le fichier Word d'un examen et retourne son contenu binaire.
-     */
     @Transactional(readOnly = true)
     public byte[] generateExamDocx(Long examId) {
         Exam exam = examRepository.findByIdWithChapterAndQuestions(examId)
@@ -50,15 +41,12 @@ public class DocxExportService {
             return out.toByteArray();
 
         } catch (IOException e) {
-            throw new RuntimeException("Erreur lors de la génération du document Word", e);
+            throw new ExportException("Erreur lors de la génération du document Word", e);
         }
     }
 
-    /**
-     * Ajoute la page de garde : titre, métadonnées, puis saut de page.
-     */
     private void addCoverPage(XWPFDocument document, Exam exam) {
-        // Espace vertical avant le titre pour centrer visuellement sur la page
+        // Marge haute pour centrer le titre.
         for (int i = 0; i < 6; i++) {
             document.createParagraph();
         }
@@ -98,7 +86,6 @@ public class DocxExportService {
         addMetaLineBreak(metaParagraph);
         addMetaLine(metaParagraph, "Nombre de questions : " + exam.getQuestions().size());
 
-        // Saut de page vers la section questions
         XWPFParagraph pageBreak = document.createParagraph();
         pageBreak.createRun().addBreak(BreakType.PAGE);
     }
@@ -113,9 +100,6 @@ public class DocxExportService {
         paragraph.createRun().addBreak();
     }
 
-    /**
-     * Ajoute la section des questions (sans les réponses).
-     */
     private void addQuestionsSection(XWPFDocument document, List<Question> questions) {
         XWPFParagraph sectionTitle = document.createParagraph();
         XWPFRun sectionTitleRun = sectionTitle.createRun();
@@ -130,7 +114,6 @@ public class DocxExportService {
             index++;
         }
 
-        // Saut de page vers le corrigé
         XWPFParagraph pageBreak = document.createParagraph();
         pageBreak.createRun().addBreak(BreakType.PAGE);
     }
@@ -171,9 +154,7 @@ public class DocxExportService {
         run.setFontSize(11);
     }
 
-    /**
-     * Lignes vides pour la réponse d'une question ouverte (bordure basse simulée par soulignés).
-     */
+    // Lignes de réponse pour question ouverte.
     private void addAnswerLines(XWPFDocument document) {
         for (int i = 0; i < 3; i++) {
             XWPFParagraph paragraph = document.createParagraph();
@@ -183,9 +164,6 @@ public class DocxExportService {
         }
     }
 
-    /**
-     * Ajoute la page de corrigé : réponses correctes et explications.
-     */
     private void addAnswerKeySection(XWPFDocument document, List<Question> questions) {
         XWPFParagraph sectionTitle = document.createParagraph();
         XWPFRun sectionTitleRun = sectionTitle.createRun();

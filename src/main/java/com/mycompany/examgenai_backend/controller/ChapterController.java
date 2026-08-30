@@ -1,6 +1,7 @@
 package com.mycompany.examgenai_backend.controller;
 
 import com.mycompany.examgenai_backend.dto.ChapterDTO;
+import com.mycompany.examgenai_backend.exception.ResourceNotFoundException;
 import com.mycompany.examgenai_backend.service.ChapterService;
 import com.mycompany.examgenai_backend.util.ApiResponse;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,7 +30,7 @@ public class ChapterController {
     public ResponseEntity<ApiResponse<ChapterDTO>> getChapterById(@PathVariable Long id) {
         return chapterService.getChapterById(id)
                 .map(chapter -> ResponseEntity.ok(new ApiResponse<>(true, "Chapitre récupéré avec succès", chapter)))
-                .orElseThrow(() -> new RuntimeException("Chapitre introuvable"));
+                .orElseThrow(() -> new ResourceNotFoundException("Chapitre introuvable avec id: " + id));
     }
 }
 

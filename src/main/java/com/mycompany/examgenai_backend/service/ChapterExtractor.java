@@ -7,16 +7,13 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/** Découpe le cours en chapitres de manière isolée pour permettre des tests JUnit sans Spring ni base de données. */
 
 @Component
 public class ChapterExtractor {
 
     private static final String DEFAULT_CHAPTER_TITLE = "Cours complet";
 
-    // Publics car réutilisés ailleurs (ex. ExamService) pour détecter un chapitre
-    // sans contenu exploitable avant d'appeler l'IA. Garder ces deux constantes en
-    // phase avec le contenu réellement produit ci-dessous.
+    // Réutilisées par ExamService pour bloquer un contenu vide avant Gemini.
     public static final String EMPTY_CONTENT_FALLBACK = "Ce chapitre ne contient pas de texte détectable.";
     public static final String EMPTY_DOCUMENT_FALLBACK = "Aucun contenu n'a pu être extrait de ce document.";
 

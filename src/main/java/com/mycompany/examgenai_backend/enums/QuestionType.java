@@ -1,9 +1,6 @@
 package com.mycompany.examgenai_backend.enums;
 
-/**
- * Types de questions partagés par l'API, la BDD et Gemini.
- * Une seule source de vérité — ne pas redéfinir d'enum équivalent dans entity.
- */
+/** Types de questions partagés (API, BDD, Gemini). */
 public enum QuestionType {
     QCM,
     TRUE_FALSE,

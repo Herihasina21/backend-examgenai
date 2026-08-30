@@ -4,6 +4,7 @@ import com.mycompany.examgenai_backend.dto.CourseDTO;
 import com.mycompany.examgenai_backend.entity.Chapter;
 import com.mycompany.examgenai_backend.entity.Course;
 import com.mycompany.examgenai_backend.enums.FileType;
+import com.mycompany.examgenai_backend.exception.ResourceNotFoundException;
 import com.mycompany.examgenai_backend.repository.ChapterRepository;
 import com.mycompany.examgenai_backend.repository.CourseRepository;
 import jakarta.transaction.Transactional;
@@ -69,7 +70,7 @@ public class CourseService {
     @Transactional
     public CourseDTO updateCourse(Long id, CourseDTO courseDetailsDto) {
         Course course = courseRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Cours non trouvé avec l'id " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Cours introuvable avec id: " + id));
 
         modelMapper.map(courseDetailsDto, course);
         course.setUpdatedAt(LocalDate.now());
@@ -80,7 +81,7 @@ public class CourseService {
     @Transactional
     public void deleteCourse(Long id) {
         Course course = courseRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Cours non trouvé avec l'id " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Cours introuvable avec id: " + id));
         if (course.getFilePath() != null) {
             try {
                 Files.deleteIfExists(Paths.get(course.getFilePath()));
@@ -115,7 +116,6 @@ public class CourseService {
         course.setUpdatedAt(LocalDate.now());
         course = courseRepository.save(course);
 
-        // Extraction du texte puis découpage en chapitres avec leur contenu réel
         String fileText = extractTextFromFile(file, fileExtension);
         createChaptersFromText(course, fileText);
 
@@ -162,12 +162,7 @@ public class CourseService {
         }
     }
 
-    /**
-     * Découpe le texte extrait entre chaque titre de chapitre et enregistre
-     * un Chapter par section, avec son contenu réel. S'il n'y a aucun titre
-     * détecté, un seul chapitre est créé avec tout le texte du document.
-     * (pageStart / pageEnd restent à faire séparément si besoin, pas indispensables pour l'IA)
-     */
+    // Découpe le texte en chapitres et les enregistre en base.
     private void createChaptersFromText(Course course, String text) {
         List<ChapterExtractor.ExtractedChapter> extractedChapters = chapterExtractor.extract(text);
 

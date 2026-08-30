@@ -1,6 +1,7 @@
 package com.mycompany.examgenai_backend.controller;
 
 import com.mycompany.examgenai_backend.dto.CourseDTO;
+import com.mycompany.examgenai_backend.exception.ResourceNotFoundException;
 import com.mycompany.examgenai_backend.service.CourseService;
 import com.mycompany.examgenai_backend.util.ApiResponse;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,7 +29,7 @@ public class CourseController {
     public ResponseEntity<ApiResponse<CourseDTO>> getCourseById(@PathVariable Long id) {
         return courseService.getCourseById(id)
                 .map(course -> ResponseEntity.ok(new ApiResponse<>(true, "Cours récupéré avec succès", course)))
-                .orElseThrow(() -> new RuntimeException("Cours introuvable"));
+                .orElseThrow(() -> new ResourceNotFoundException("Cours introuvable avec id: " + id));
     }
 
     @PostMapping
