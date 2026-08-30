@@ -2,7 +2,7 @@ package com.mycompany.examgenai_backend.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.mycompany.examgenai_backend.dto.openai.GeneratedExamResponseDTO;
+import com.mycompany.examgenai_backend.dto.gemini.GeneratedExamResponseDTO;
 import com.mycompany.examgenai_backend.enums.DifficultyLevel;
 import com.mycompany.examgenai_backend.enums.QuestionType;
 import com.mycompany.examgenai_backend.exception.ExternalServiceException;

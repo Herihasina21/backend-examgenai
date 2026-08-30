@@ -2,8 +2,8 @@ package com.mycompany.examgenai_backend.service;
 
 import com.mycompany.examgenai_backend.dto.ExamDTO;
 import com.mycompany.examgenai_backend.dto.ExamGenerationRequestDTO;
-import com.mycompany.examgenai_backend.dto.openai.GeneratedAnswerDTO;
-import com.mycompany.examgenai_backend.dto.openai.GeneratedQuestionDTO;
+import com.mycompany.examgenai_backend.dto.gemini.GeneratedAnswerDTO;
+import com.mycompany.examgenai_backend.dto.gemini.GeneratedQuestionDTO;
 import com.mycompany.examgenai_backend.entity.Chapter;
 import com.mycompany.examgenai_backend.entity.Exam;
 import com.mycompany.examgenai_backend.entity.Question;
