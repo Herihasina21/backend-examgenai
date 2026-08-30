@@ -7,6 +7,7 @@ import com.mycompany.examgenai_backend.repository.ExamRepository;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.xwpf.usermodel.*;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -32,8 +33,9 @@ public class DocxExportService {
     /**
      * Génère le fichier Word d'un examen et retourne son contenu binaire.
      */
+    @Transactional(readOnly = true)
     public byte[] generateExamDocx(Long examId) {
-        Exam exam = examRepository.findById(examId)
+        Exam exam = examRepository.findByIdWithChapterAndQuestions(examId)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Exam introuvable avec id: " + examId));
 
@@ -145,7 +147,7 @@ public class DocxExportService {
         switch (question.getQuestionType()) {
             case QCM -> addOptions(document, question.getOptions());
             case TRUE_FALSE -> addTrueFalseOptions(document);
-            case OPEN -> addAnswerLines(document);
+            case OPEN, FILL_IN_BLANK -> addAnswerLines(document);
         }
     }
 

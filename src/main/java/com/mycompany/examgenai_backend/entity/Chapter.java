@@ -20,7 +20,7 @@ public class Chapter {
     @Column(nullable = false)
     private String title;
 
-    @Lob
+    @Column(columnDefinition = "TEXT")
     private String content; // Extracted text content from the course file
 
     @Column(nullable = false)

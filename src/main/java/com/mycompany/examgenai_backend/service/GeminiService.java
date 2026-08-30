@@ -59,7 +59,7 @@ public class GeminiService {
                   "questions": [
                     {
                       "questionText": "texte de la question",
-                      "questionType": "MULTIPLE_CHOICE",
+                      "questionType": "QCM",
                       "points": 2,
                       "difficultyLevel": "MEDIUM",
                       "answers": [
@@ -70,10 +70,10 @@ public class GeminiService {
                   ]
                 }
                 Règles :
-                - questionType : MULTIPLE_CHOICE, OPEN_ENDED, TRUE_FALSE ou FILL_IN_BLANK
-                - MULTIPLE_CHOICE : 4 réponses, une seule isCorrect true
+                - questionType : QCM, TRUE_FALSE, OPEN ou FILL_IN_BLANK
+                - QCM : 4 réponses, une seule isCorrect true
                 - TRUE_FALSE : 2 réponses (Vrai/Faux), une seule isCorrect true
-                - OPEN_ENDED : answers vide ou une réponse modèle avec isCorrect true
+                - OPEN ou FILL_IN_BLANK : answers vide ou une réponse modèle avec isCorrect true
                 - difficultyLevel : EASY, MEDIUM ou HARD
                 """;
 

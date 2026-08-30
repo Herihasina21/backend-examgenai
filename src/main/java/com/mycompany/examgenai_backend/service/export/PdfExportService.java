@@ -12,6 +12,7 @@ import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.pdmodel.font.PDFont;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -44,8 +45,9 @@ public class PdfExportService {
     private static final DateTimeFormatter DATE_FORMATTER =
             DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
+    @Transactional(readOnly = true)
     public byte[] generateExamPdf(Long examId) {
-        Exam exam = examRepository.findById(examId)
+        Exam exam = examRepository.findByIdWithChapterAndQuestions(examId)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Exam introuvable avec id: " + examId));
 
@@ -153,7 +155,7 @@ public class PdfExportService {
             switch (question.getQuestionType()) {
                 case QCM -> addOptions(question.getOptions());
                 case TRUE_FALSE -> addTrueFalseOptions();
-                case OPEN -> addAnswerSpace();
+                case OPEN, FILL_IN_BLANK -> addAnswerSpace();
             }
         }
 

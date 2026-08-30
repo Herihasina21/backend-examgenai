@@ -1,6 +1,6 @@
 package com.mycompany.examgenai_backend.dto;
 
-import com.mycompany.examgenai_backend.entity.QuestionType;
+import com.mycompany.examgenai_backend.enums.QuestionType;
 import com.mycompany.examgenai_backend.enums.DifficultyLevel;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
