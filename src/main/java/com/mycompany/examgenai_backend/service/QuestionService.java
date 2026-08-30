@@ -5,7 +5,7 @@ import com.mycompany.examgenai_backend.dto.QuestionDTO;
 import com.mycompany.examgenai_backend.dto.QuestionUpdateDTO;
 import com.mycompany.examgenai_backend.entity.Exam;
 import com.mycompany.examgenai_backend.entity.Question;
-import com.mycompany.examgenai_backend.entity.QuestionType;
+import com.mycompany.examgenai_backend.enums.QuestionType;
 import com.mycompany.examgenai_backend.exception.InvalidQuestionException;
 import com.mycompany.examgenai_backend.exception.ResourceNotFoundException;
 import com.mycompany.examgenai_backend.mapper.QuestionMapper;

@@ -145,7 +145,7 @@ public class DocxExportService {
         switch (question.getQuestionType()) {
             case QCM -> addOptions(document, question.getOptions());
             case TRUE_FALSE -> addTrueFalseOptions(document);
-            case OPEN -> addAnswerLines(document);
+            case OPEN, FILL_IN_BLANK -> addAnswerLines(document);
         }
     }
 

@@ -139,11 +139,11 @@ Merge via Pull Request après relecture.
 | Partie | Statut |
 |--------|--------|
 | Upload cours, CRUD cours | Fait |
-| Liste des chapitres | Fait |
-| Contenu réel des chapitres | En cours (Ladina) |
-| Génération IA | En cours (Herihasina) |
-| CRUD questions, export | À faire (Tsiory) |
-| Tests JUnit | À faire |
+| Liste des chapitres + contenu | Fait |
+| Génération IA (Gemini) | Fait |
+| CRUD questions | Fait |
+| Export PDF / Word | Fait |
+| Tests JUnit | Partiel (`ChapterExtractorTest`) |
 | Jenkins / CI | À faire |
 | Frontend React | À faire |
 

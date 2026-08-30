@@ -1,20 +1,16 @@
 package com.mycompany.examgenai_backend.entity;
 
 import com.mycompany.examgenai_backend.enums.DifficultyLevel;
+import com.mycompany.examgenai_backend.enums.QuestionType;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
 @Table(name = "questions")
-@Getter
-@Setter
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder

@@ -1,17 +1,15 @@
 package com.mycompany.examgenai_backend.service;
 
-import com.mycompany.examgenai_backend.dto.AnswerDTO;
 import com.mycompany.examgenai_backend.dto.ExamDTO;
 import com.mycompany.examgenai_backend.dto.ExamGenerationRequestDTO;
-import com.mycompany.examgenai_backend.dto.QuestionDTO;
 import com.mycompany.examgenai_backend.dto.openai.GeneratedAnswerDTO;
 import com.mycompany.examgenai_backend.dto.openai.GeneratedQuestionDTO;
-import com.mycompany.examgenai_backend.entity.Answer;
 import com.mycompany.examgenai_backend.entity.Chapter;
 import com.mycompany.examgenai_backend.entity.Exam;
 import com.mycompany.examgenai_backend.entity.Question;
 import com.mycompany.examgenai_backend.enums.DifficultyLevel;
 import com.mycompany.examgenai_backend.enums.QuestionType;
+import com.mycompany.examgenai_backend.mapper.QuestionMapper;
 import com.mycompany.examgenai_backend.repository.ChapterRepository;
 import com.mycompany.examgenai_backend.repository.ExamRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,6 +35,9 @@ public class ExamService {
 
     @Autowired
     private GeminiService geminiService;
+
+    @Autowired
+    private QuestionMapper questionMapper;
 
     public ExamDTO generateExam(ExamGenerationRequestDTO request) {
         validateGenerationRequest(request);
@@ -117,7 +118,7 @@ public class ExamService {
 
     private List<QuestionType> resolveQuestionTypes(List<QuestionType> questionTypes) {
         if (questionTypes == null || questionTypes.isEmpty()) {
-            return List.of(QuestionType.MULTIPLE_CHOICE, QuestionType.TRUE_FALSE, QuestionType.OPEN_ENDED);
+            return List.of(QuestionType.QCM, QuestionType.TRUE_FALSE, QuestionType.OPEN);
         }
         return questionTypes;
     }
@@ -126,42 +127,44 @@ public class ExamService {
         List<Question> questions = new ArrayList<>();
 
         for (GeneratedQuestionDTO generatedQuestion : generatedQuestions) {
+            var options = new ArrayList<String>();
+            var correctAnswer = "";
+
+            if (generatedQuestion.getAnswers() != null) {
+                for (GeneratedAnswerDTO answer : generatedQuestion.getAnswers()) {
+                    if (answer.getAnswerText() == null || answer.getAnswerText().isBlank()) {
+                        continue;
+                    }
+                    options.add(answer.getAnswerText());
+                    if (Boolean.TRUE.equals(answer.getIsCorrect()) && correctAnswer.isBlank()) {
+                        correctAnswer = answer.getAnswerText();
+                    }
+                }
+            }
+
+            if (correctAnswer.isBlank() && !options.isEmpty()) {
+                correctAnswer = options.get(0);
+            }
+            if (correctAnswer.isBlank()) {
+                correctAnswer = "N/A";
+            }
+
             Question question = new Question();
-            question.setQuestionText(generatedQuestion.getQuestionText());
-            question.setQuestionType(generatedQuestion.getQuestionType());
+            question.setStatement(generatedQuestion.getQuestionText());
+            question.setQuestionType(
+                    generatedQuestion.getQuestionType() != null ? generatedQuestion.getQuestionType() : QuestionType.QCM
+            );
             question.setPoints(generatedQuestion.getPoints() != null ? generatedQuestion.getPoints() : 1);
-            question.setDifficultyLevel(
+            question.setDifficulty(
                     generatedQuestion.getDifficultyLevel() != null ? generatedQuestion.getDifficultyLevel() : defaultDifficulty
             );
+            question.setOptions(options);
+            question.setCorrectAnswer(correctAnswer);
             question.setExam(exam);
-
-            List<Answer> answers = buildAnswers(generatedQuestion.getAnswers(), question);
-            question.setAnswers(answers);
             questions.add(question);
         }
 
         return questions;
-    }
-
-    private List<Answer> buildAnswers(List<GeneratedAnswerDTO> generatedAnswers, Question question) {
-        if (generatedAnswers == null || generatedAnswers.isEmpty()) {
-            return new ArrayList<>();
-        }
-
-        List<Answer> answers = new ArrayList<>();
-        int order = 1;
-
-        for (GeneratedAnswerDTO generatedAnswer : generatedAnswers) {
-            Answer answer = new Answer();
-            answer.setAnswerText(generatedAnswer.getAnswerText());
-            answer.setIsCorrect(generatedAnswer.getIsCorrect() != null && generatedAnswer.getIsCorrect());
-            answer.setAnswerOrder(generatedAnswer.getAnswerOrder() != null ? generatedAnswer.getAnswerOrder() : order);
-            answer.setQuestion(question);
-            answers.add(answer);
-            order++;
-        }
-
-        return answers;
     }
 
     private ExamDTO toExamDTO(Exam exam) {
@@ -183,38 +186,10 @@ public class ExamService {
 
         if (exam.getQuestions() != null) {
             dto.setQuestions(exam.getQuestions().stream()
-                    .map(this::toQuestionDTO)
+                    .map(questionMapper::toDTO)
                     .collect(Collectors.toList()));
         }
 
-        return dto;
-    }
-
-    private QuestionDTO toQuestionDTO(Question question) {
-        QuestionDTO dto = new QuestionDTO();
-        dto.setId(question.getId());
-        dto.setQuestionText(question.getQuestionText());
-        dto.setQuestionType(question.getQuestionType());
-        dto.setPoints(question.getPoints());
-        dto.setDifficultyLevel(question.getDifficultyLevel());
-        dto.setExamId(question.getExam() != null ? question.getExam().getId() : null);
-
-        if (question.getAnswers() != null) {
-            dto.setAnswers(question.getAnswers().stream()
-                    .map(this::toAnswerDTO)
-                    .collect(Collectors.toList()));
-        }
-
-        return dto;
-    }
-
-    private AnswerDTO toAnswerDTO(Answer answer) {
-        AnswerDTO dto = new AnswerDTO();
-        dto.setId(answer.getId());
-        dto.setAnswerText(answer.getAnswerText());
-        dto.setIsCorrect(answer.getIsCorrect());
-        dto.setAnswerOrder(answer.getAnswerOrder());
-        dto.setQuestionId(answer.getQuestion() != null ? answer.getQuestion().getId() : null);
         return dto;
     }
 }

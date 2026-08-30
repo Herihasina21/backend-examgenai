@@ -17,7 +17,7 @@ public class QuestionMapper {
                 .options(question.getOptions())
                 .correctAnswer(question.getCorrectAnswer())
                 .explanation(question.getExplanation())
-                .examId(question.getExam().getId())
+                .examId(question.getExam() != null ? question.getExam().getId() : null)
                 .build();
     }
 }

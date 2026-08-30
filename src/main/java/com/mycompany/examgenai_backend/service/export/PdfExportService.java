@@ -153,7 +153,7 @@ public class PdfExportService {
             switch (question.getQuestionType()) {
                 case QCM -> addOptions(question.getOptions());
                 case TRUE_FALSE -> addTrueFalseOptions();
-                case OPEN -> addAnswerSpace();
+                case OPEN, FILL_IN_BLANK -> addAnswerSpace();
             }
         }
 
