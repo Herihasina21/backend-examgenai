@@ -19,4 +19,7 @@ public interface ExamRepository extends JpaRepository<Exam, Long> {
 
     @Query("SELECT e FROM Exam e LEFT JOIN FETCH e.chapter LEFT JOIN FETCH e.questions WHERE e.id = :id")
     Optional<Exam> findByIdWithChapterAndQuestions(@Param("id") Long id);
+
+    @Query("SELECT DISTINCT e FROM Exam e LEFT JOIN FETCH e.chapter LEFT JOIN FETCH e.questions WHERE e.chapter.id = :chapterId")
+    List<Exam> findByChapterIdWithQuestions(@Param("chapterId") Long chapterId);
 }

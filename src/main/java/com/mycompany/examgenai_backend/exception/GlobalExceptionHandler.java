@@ -1,6 +1,7 @@
 package com.mycompany.examgenai_backend.exception;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -56,6 +57,15 @@ public class GlobalExceptionHandler {
         body.put("errors", fieldErrors);
 
         return ResponseEntity.badRequest().body(body);
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, Object>> handleDataIntegrity(DataIntegrityViolationException ex) {
+        log.warn("Violation d'intégrité : {}", ex.getMessage());
+        return buildResponse(
+                HttpStatus.CONFLICT,
+                "Impossible de supprimer cet élément : des examens ou questions y sont encore liés."
+        );
     }
 
     @ExceptionHandler(Exception.class)
