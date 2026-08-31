@@ -80,11 +80,11 @@ public class ExamService {
     }
 
     public Optional<ExamDTO> getExamById(Long id) {
-        return examRepository.findById(id).map(this::toExamDTO);
+        return examRepository.findByIdWithChapterAndQuestions(id).map(this::toExamDTO);
     }
 
     public List<ExamDTO> getExamsByChapter(Long chapterId) {
-        return examRepository.findByChapterId(chapterId).stream()
+        return examRepository.findByChapterIdWithQuestions(chapterId).stream()
                 .map(this::toExamDTO)
                 .collect(Collectors.toList());
     }

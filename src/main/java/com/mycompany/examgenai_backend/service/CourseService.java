@@ -8,6 +8,7 @@ import com.mycompany.examgenai_backend.exception.BadRequestException;
 import com.mycompany.examgenai_backend.exception.ResourceNotFoundException;
 import com.mycompany.examgenai_backend.repository.ChapterRepository;
 import com.mycompany.examgenai_backend.repository.CourseRepository;
+import com.mycompany.examgenai_backend.repository.ExamRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -45,6 +46,7 @@ public class CourseService {
 
     private final CourseRepository courseRepository;
     private final ChapterRepository chapterRepository;
+    private final ExamRepository examRepository;
     private final ModelMapper modelMapper;
     private final ChapterExtractor chapterExtractor;
 
@@ -86,6 +88,9 @@ public class CourseService {
     public void deleteCourse(Long id) {
         Course course = courseRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Cours introuvable avec id: " + id));
+
+        examRepository.deleteAll(examRepository.findByCourseId(id));
+
         if (course.getFilePath() != null) {
             try {
                 Files.deleteIfExists(Paths.get(course.getFilePath()));
