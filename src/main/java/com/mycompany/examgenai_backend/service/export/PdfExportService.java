@@ -114,7 +114,7 @@ public class PdfExportService {
         }
 
         void addHeader(Exam exam) throws IOException {
-            drawCenteredText(exam.getTitle(), FONT_TITLE, 20f, yPosition);
+            drawCenteredText(sanitizeForPdf(exam.getTitle()), FONT_TITLE, 20f, yPosition);
             yPosition -= 26f;
 
             String chapterName = exam.getChapter() != null
@@ -123,7 +123,7 @@ public class PdfExportService {
             String dateStr = exam.getCreatedAt() != null
                     ? exam.getCreatedAt().format(DATE_FORMATTER)
                     : "Non specifiee";
-            String metaLine = "Chapitre: " + chapterName
+            String metaLine = "Chapitre: " + sanitizeForPdf(chapterName)
                     + "   |   Date: " + dateStr
                     + "   |   Duree: " + exam.getDurationMinutes() + " min";
 
@@ -146,7 +146,7 @@ public class PdfExportService {
             ensureSpace(LINE_HEIGHT * 2);
             yPosition -= 6f;
 
-            String header = index + ". " + question.getStatement()
+            String header = index + ". " + sanitizeForPdf(question.getStatement())
                     + "  (" + question.getPoints() + " pt)";
             writeWrappedText(header, FONT_QUESTION, 12f, 0);
 
@@ -160,7 +160,7 @@ public class PdfExportService {
         private void addOptions(List<String> options) throws IOException {
             char letter = 'a';
             for (String option : options) {
-                writeWrappedText(letter + ") " + option, FONT_OPTION, 11f, 15f);
+                writeWrappedText(letter + ") " + sanitizeForPdf(option), FONT_OPTION, 11f, 15f);
                 letter++;
             }
         }
@@ -232,5 +232,21 @@ public class PdfExportService {
             }
             return lines;
         }
+    }
+
+    private String sanitizeForPdf(String text) {
+        if (text == null) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder(text.length());
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c < 256) {
+                sb.append(c);
+            } else {
+                sb.append('?');
+            }
+        }
+        return sb.toString();
     }
 }
