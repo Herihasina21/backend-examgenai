@@ -24,6 +24,8 @@ public class ExamGenerationRequestDTO {
     @NotNull(message = "L'identifiant du chapitre est obligatoire")
     private Long chapterId;
 
+    private Long courseId;
+
     @NotNull(message = "Le nombre de questions est obligatoire")
     @Min(value = 1, message = "Le nombre de questions doit être au moins 1")
     private Integer numberOfQuestions;
