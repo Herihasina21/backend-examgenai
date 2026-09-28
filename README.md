@@ -194,6 +194,7 @@ La base Postgres recommandee est **Supabase** (plus durable que le Postgres Free
    - `SPRING_DATASOURCE_USERNAME` = user Supabase
    - `SPRING_DATASOURCE_PASSWORD` = mot de passe du projet Supabase
    - `GEMINI_API_KEY` = cle Google AI Studio
+   - `GEMINI_MODELS` = (optionnel) liste de modeles separes par des virgules ; fallback auto si 503/429
    - `APP_CORS_ALLOWED_ORIGINS` = URL Vercel + `http://localhost:5173`
    - `FILE_UPLOAD_DIR` = `/tmp/uploads`
 6. Deployer, puis tester : `https://VOTRE-SERVICE.onrender.com/api/courses`
