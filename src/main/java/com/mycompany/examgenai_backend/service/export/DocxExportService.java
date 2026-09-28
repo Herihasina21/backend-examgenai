@@ -19,6 +19,7 @@ import java.math.BigInteger;
 import java.util.List;
 
 import static com.mycompany.examgenai_backend.service.export.ExportFormatUtils.formatDuration;
+import static com.mycompany.examgenai_backend.service.export.ExportFormatUtils.resolveCourseTitle;
 
 @Service
 @RequiredArgsConstructor
@@ -49,7 +50,7 @@ public class DocxExportService {
 
     private void addFramedHeader(XWPFDocument document, Exam exam) {
         var durationLabel = "Durée : " + formatDuration(exam.getDurationMinutes());
-        var title = exam.getTitle() != null ? exam.getTitle() : "";
+        var headerTitle = "Examen - " + resolveCourseTitle(exam);
 
         XWPFTable table = document.createTable(1, 2);
         table.setWidth("100%");
@@ -63,7 +64,7 @@ public class DocxExportService {
         styleHeaderCell(left, 7200);
         styleHeaderCell(right, 2800);
 
-        setCellText(left, title, true, 13, ParagraphAlignment.CENTER);
+        setCellText(left, headerTitle, true, 13, ParagraphAlignment.CENTER);
         setCellText(right, durationLabel, true, 11, ParagraphAlignment.CENTER);
 
         document.createParagraph();

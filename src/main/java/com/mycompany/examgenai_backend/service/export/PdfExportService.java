@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static com.mycompany.examgenai_backend.service.export.ExportFormatUtils.formatDuration;
+import static com.mycompany.examgenai_backend.service.export.ExportFormatUtils.resolveCourseTitle;
 import static com.mycompany.examgenai_backend.service.export.ExportFormatUtils.sanitizeForPdf;
 
 @Service
@@ -116,7 +117,8 @@ public class PdfExportService {
         }
 
         void addHeader(Exam exam) throws IOException {
-            var examTitle = sanitizeForPdf(exam.getTitle());
+            var courseTitle = sanitizeForPdf(resolveCourseTitle(exam));
+            var examTitle = sanitizeForPdf("Examen - " + courseTitle);
             var durationLabel = "Duree : " + formatDuration(exam.getDurationMinutes());
 
             float titleColWidth = CONTENT_WIDTH * TITLE_COL_RATIO;
@@ -130,7 +132,8 @@ public class PdfExportService {
                 titleLines = List.of("");
             }
 
-            float contentHeight = Math.max(HEADER_TITLE_LINE, titleLines.size() * HEADER_TITLE_LINE);
+            float titleBlockHeight = titleLines.size() * HEADER_TITLE_LINE;
+            float contentHeight = titleBlockHeight;
             float headerHeight = Math.max(HEADER_MIN_HEIGHT, contentHeight + 2 * pad);
 
             float boxTop = yPosition;
@@ -146,8 +149,9 @@ public class PdfExportService {
             contentStream.lineTo(xSplit, boxTop);
             contentStream.stroke();
 
-            float titleBlockHeight = titleLines.size() * HEADER_TITLE_LINE;
-            float titleStartY = boxTop - pad - ((headerHeight - 2 * pad - titleBlockHeight) / 2f) - (titleSize * 0.8f);
+            float titleStartY = boxTop - pad
+                    - ((headerHeight - 2 * pad - titleBlockHeight) / 2f)
+                    - (titleSize * 0.8f);
             for (int i = 0; i < titleLines.size(); i++) {
                 var line = titleLines.get(i);
                 float lineWidth = FONT_TITLE.getStringWidth(line) / 1000 * titleSize;

@@ -1,5 +1,7 @@
 package com.mycompany.examgenai_backend.service.export;
 
+import com.mycompany.examgenai_backend.entity.Exam;
+
 import java.text.Normalizer;
 
 /**
@@ -24,6 +26,23 @@ public final class ExportFormatUtils {
             return minutes + " min";
         }
         return String.format("%02d h %02d", hours, minutes);
+    }
+
+    public static String resolveCourseTitle(Exam exam) {
+        if (exam == null) {
+            return "Cours";
+        }
+        if (exam.getCourse() != null && exam.getCourse().getTitle() != null
+                && !exam.getCourse().getTitle().isBlank()) {
+            return exam.getCourse().getTitle();
+        }
+        if (exam.getChapter() != null
+                && exam.getChapter().getCourse() != null
+                && exam.getChapter().getCourse().getTitle() != null
+                && !exam.getChapter().getCourse().getTitle().isBlank()) {
+            return exam.getChapter().getCourse().getTitle();
+        }
+        return "Cours";
     }
 
     /**

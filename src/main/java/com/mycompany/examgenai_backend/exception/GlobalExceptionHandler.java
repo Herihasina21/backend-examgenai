@@ -62,10 +62,22 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<Map<String, Object>> handleDataIntegrity(DataIntegrityViolationException ex) {
         log.warn("Violation d'intégrité : {}", ex.getMessage());
-        return buildResponse(
-                HttpStatus.CONFLICT,
-                "Impossible de supprimer cet élément : des examens ou questions y sont encore liés."
-        );
+        var detail = ex.getMostSpecificCause() != null
+                ? ex.getMostSpecificCause().getMessage()
+                : ex.getMessage();
+        var haystack = detail == null ? "" : detail.toLowerCase();
+
+        String message;
+        if (haystack.contains("chapter_id") && haystack.contains("null")) {
+            message = "Impossible d'enregistrer un examen sans chapitre. "
+                    + "Exécutez sur la base : ALTER TABLE exams ALTER COLUMN chapter_id DROP NOT NULL;";
+        } else if (haystack.contains("foreign key") || haystack.contains("still referenced")) {
+            message = "Impossible de supprimer cet élément : d'autres données y sont encore liées.";
+        } else {
+            message = "Impossible de supprimer cet élément : des examens ou questions y sont encore liés.";
+        }
+
+        return buildResponse(HttpStatus.CONFLICT, message);
     }
 
     @ExceptionHandler(Exception.class)
