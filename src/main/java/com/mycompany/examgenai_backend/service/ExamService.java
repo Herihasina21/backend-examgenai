@@ -11,6 +11,8 @@ import com.mycompany.examgenai_backend.entity.Exam;
 import com.mycompany.examgenai_backend.entity.Question;
 import com.mycompany.examgenai_backend.enums.DifficultyLevel;
 import com.mycompany.examgenai_backend.enums.QuestionType;
+import com.mycompany.examgenai_backend.exception.BadRequestException;
+import com.mycompany.examgenai_backend.exception.ResourceNotFoundException;
 import com.mycompany.examgenai_backend.mapper.QuestionMapper;
 import com.mycompany.examgenai_backend.repository.ChapterRepository;
 import com.mycompany.examgenai_backend.repository.CourseRepository;
@@ -63,7 +65,8 @@ public class ExamService {
         if (request.getChapterId() != null) {
             // Génération classique : un seul chapitre
             Chapter chapter = chapterRepository.findById(request.getChapterId())
-                    .orElseThrow(() -> new RuntimeException("Chapitre introuvable avec l'id " + request.getChapterId()));
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Chapitre introuvable. Vérifiez la sélection et réessayez."));
 
             validateChapterContent(chapter.getContent());
 
@@ -80,11 +83,13 @@ public class ExamService {
         } else {
             // Génération sur "toutes les chapitres" d'un cours
             Course course = courseRepository.findById(request.getCourseId())
-                    .orElseThrow(() -> new RuntimeException("Cours introuvable avec l'id " + request.getCourseId()));
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Cours introuvable. Vérifiez la sélection et réessayez."));
 
             List<Chapter> chapters = chapterRepository.findByCourseId(course.getId());
             if (chapters.isEmpty()) {
-                throw new RuntimeException("Ce cours ne contient aucun chapitre exploitable");
+                throw new BadRequestException(
+                        "Ce cours ne contient aucun chapitre exploitable pour la génération.");
             }
 
             String combinedContent = buildCombinedContent(chapters);
@@ -128,32 +133,35 @@ public class ExamService {
 
     public void deleteExam(Long id) {
         if (!examRepository.existsById(id)) {
-            throw new RuntimeException("Examen introuvable avec l'id " + id);
+            throw new ResourceNotFoundException(
+                    "Cet examen est introuvable. Il a peut-être déjà été supprimé.");
         }
         examRepository.deleteById(id);
     }
 
     private void validateGenerationRequest(ExamGenerationRequestDTO request) {
         if (request.getExamTitle() == null || request.getExamTitle().isBlank()) {
-            throw new RuntimeException("Le titre de l'examen est obligatoire");
+            throw new BadRequestException("Le titre de l'examen est obligatoire.");
         }
         if (request.getChapterId() == null && request.getCourseId() == null) {
-            throw new RuntimeException("Il faut préciser un chapitre ou un cours");
+            throw new BadRequestException("Choisissez un chapitre ou un cours pour générer l'examen.");
         }
         if (request.getNumberOfQuestions() == null || request.getNumberOfQuestions() < 1) {
-            throw new RuntimeException("Le nombre de questions doit être au moins 1");
+            throw new BadRequestException("Le nombre de questions doit être au moins 1.");
         }
         if (request.getDurationMinutes() == null || request.getDurationMinutes() < 1) {
-            throw new RuntimeException("La durée de l'examen doit être au moins 1 minute");
+            throw new BadRequestException("La durée de l'examen doit être au moins 1 minute.");
         }
     }
 
     private void validateChapterContent(String content) {
         if (content == null || content.isBlank()) {
-            throw new RuntimeException("Le contenu source ne contient pas de texte exploitable pour la génération");
+            throw new BadRequestException(
+                    "Le contenu source ne contient pas de texte exploitable pour la génération.");
         }
         if (LEGACY_PLACEHOLDER.equals(content.trim())) {
-            throw new RuntimeException("Le contenu n'a pas encore été extrait. Ré-uploadez le cours ou attendez la mise à jour du chapitre.");
+            throw new BadRequestException(
+                    "Le contenu n'a pas encore été extrait. Ré-uploadez le cours.");
         }
     }
 
