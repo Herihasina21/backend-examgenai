@@ -58,28 +58,20 @@ cp src/main/resources/application-local.properties.example src/main/resources/ap
 ```
 
 Éditer `application-local.properties` :
+- renseigner le mot de passe PostgreSQL local
+- renseigner la cle Gemini (obtenue sur Google AI Studio)
 
-```properties
-spring.datasource.password=votre_mot_de_passe
-```
+Le profil `local` est active dans `application.properties`. Pas besoin d'argument Maven en plus.
 
-Le profil `local` est activé dans `application.properties`. Pas besoin d'argument Maven en plus.
-
-Pour la génération IA (Herihasina), ajouter aussi :
-
-```properties
-gemini.api-key=AIza... ou AQ...
-```
-
-Clé gratuite : [Google AI Studio](https://aistudio.google.com/apikey)
+Cle gratuite Gemini : [Google AI Studio](https://aistudio.google.com/apikey)
 
 ### Test de l'IA
-Pour tester la génération d’examens :
-git pull
-Créer une clé gratuite sur https://aistudio.google.com/apikey
-Copier application-local.properties.example → application-local.properties
-Mettre votre mot de passe PostgreSQL + gemini.api-key=...
-mvn spring-boot:run puis POST /api/exams/generate
+Pour tester la generation d'examens :
+1. git pull
+2. Creer une cle sur Google AI Studio
+3. Copier application-local.properties.example → application-local.properties
+4. Renseigner mot de passe PostgreSQL et cle Gemini (fichier ignore par Git)
+5. mvn spring-boot:run puis POST /api/exams/generate
 
 
 ### Lancer l'application
@@ -182,6 +174,43 @@ src/main/java/com/mycompany/examgenai_backend/
 ├── repository/
 └── service/
 ```
+
+## Déploiement Render (Docker) + Supabase
+
+Le backend est dockerise (`Dockerfile`). Render deploie cette image.
+La base Postgres recommandee est **Supabase** (plus durable que le Postgres Free Render 30 jours).
+
+1. Pousser la branche `chore/render-deploy-v2` (ou merger sur `main`).
+2. Creer un projet Postgres sur Supabase ; noter host, user et mot de passe.
+3. Sur [render.com](https://render.com) : **New +** → **Web Service** → repo `backend-examgenai`
+4. Reglages Web Service :
+   - **Branch** : `chore/render-deploy-v2` (ou `main`)
+   - **Runtime** : Docker
+   - **Dockerfile Path** : `./Dockerfile`
+   - **Instance** : Free
+5. Variables d'environnement (valeurs reelles uniquement dans Render, jamais dans Git) :
+   - `SPRING_PROFILES_ACTIVE` = `prod`
+   - `SPRING_DATASOURCE_URL` = JDBC vers Supabase (`jdbc:postgresql://HOST:5432/postgres`)
+   - `SPRING_DATASOURCE_USERNAME` = user Supabase
+   - `SPRING_DATASOURCE_PASSWORD` = mot de passe du projet Supabase
+   - `GEMINI_API_KEY` = cle Google AI Studio
+   - `APP_CORS_ALLOWED_ORIGINS` = URL Vercel + `http://localhost:5173`
+   - `FILE_UPLOAD_DIR` = `/tmp/uploads`
+6. Deployer, puis tester : `https://VOTRE-SERVICE.onrender.com/api/courses`
+
+Le plan Free Render met le service en veille apres inactivite : le 1er appel peut etre lent.
+
+### Lancer en local avec Docker
+
+```bash
+export POSTGRES_PASSWORD=...   # mot de passe local compose
+export GEMINI_API_KEY=...      # cle Gemini
+docker compose up --build
+```
+
+API : http://localhost:8080
+
+Fichiers : `Dockerfile`, `docker-compose.yml`, `.dockerignore`, `application-prod.properties`.
 
 ## Licence
 

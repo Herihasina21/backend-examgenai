@@ -1,0 +1,12 @@
+target/
+.idea/
+.vscode/
+.git/
+.gitignore
+*.iml
+uploads/
+src/main/resources/application-local.properties
+src/test/
+HELP.md
+PLAN_PROJET.md
+README.md
