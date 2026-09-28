@@ -68,7 +68,7 @@ Le profil `local` est activé dans `application.properties`. Pas besoin d'argume
 Pour la génération IA (Herihasina), ajouter aussi :
 
 ```properties
-gemini.api-key=AIza... ou AQ...
+gemini.api-key=votre_cle_gemini
 ```
 
 Clé gratuite : [Google AI Studio](https://aistudio.google.com/apikey)
@@ -188,29 +188,28 @@ src/main/java/com/mycompany/examgenai_backend/
 Le backend est dockerisé (`Dockerfile`). Render déploie cette image.
 
 1. Pousser la branche `chore/render-deploy` (ou merger sur `main`).
-2. Sur [render.com](https://render.com) :
-   - **New +** → **PostgreSQL** (plan Free) — noter Host, Database, User, Password
-   - **New +** → **Web Service** → repo `backend-examgenai`
-3. Réglages Web Service :
+2. Créer une base Postgres durable (ex. **Supabase**) et noter Host, User, Password.
+3. Sur [render.com](https://render.com) : **New +** → **Web Service** → repo `backend-examgenai`
+4. Réglages Web Service :
    - **Branch** : `chore/render-deploy` (ou `main`)
    - **Runtime** : Docker
    - **Dockerfile Path** : `./Dockerfile`
    - **Instance** : Free
-4. Variables d'environnement :
+5. Variables d'environnement :
 
 | Variable | Exemple |
 |----------|---------|
 | `SPRING_PROFILES_ACTIVE` | `prod` |
-| `SPRING_DATASOURCE_URL` | `jdbc:postgresql://HOST:5432/examgenai` |
-| `SPRING_DATASOURCE_USERNAME` | user Postgres Render |
-| `SPRING_DATASOURCE_PASSWORD` | password Postgres Render |
+| `SPRING_DATASOURCE_URL` | `jdbc:postgresql://HOST:5432/postgres` |
+| `SPRING_DATASOURCE_USERNAME` | `postgres` |
+| `SPRING_DATASOURCE_PASSWORD` | mot de passe Postgres (Supabase / autre) |
 | `GEMINI_API_KEY` | clé [AI Studio](https://aistudio.google.com/apikey) |
 | `APP_CORS_ALLOWED_ORIGINS` | `https://votre-front.vercel.app,http://localhost:5173` |
 | `FILE_UPLOAD_DIR` | `/tmp/uploads` |
 
-> Convertir l'URL Render `postgres://...` en JDBC : `jdbc:postgresql://HOST:5432/DB`.
+> URI Supabase `postgresql://...` → JDBC : préfixer avec `jdbc:` (ex. `jdbc:postgresql://db.xxx.supabase.co:5432/postgres`).
 
-5. Déployer, puis tester : `https://VOTRE-SERVICE.onrender.com/api/courses`
+6. Déployer, puis tester : `https://VOTRE-SERVICE.onrender.com/api/courses`
 
 Le plan Free met le service en veille après inactivité (~15 min) : le 1er appel peut être lent.
 
