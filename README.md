@@ -183,6 +183,48 @@ src/main/java/com/mycompany/examgenai_backend/
 └── service/
 ```
 
+## Déploiement Render (Docker)
+
+Le backend est dockerisé (`Dockerfile`). Render déploie cette image.
+
+1. Pousser la branche `chore/render-deploy` (ou merger sur `main`).
+2. Sur [render.com](https://render.com) :
+   - **New +** → **PostgreSQL** (plan Free) — noter Host, Database, User, Password
+   - **New +** → **Web Service** → repo `backend-examgenai`
+3. Réglages Web Service :
+   - **Branch** : `chore/render-deploy` (ou `main`)
+   - **Runtime** : Docker
+   - **Dockerfile Path** : `./Dockerfile`
+   - **Instance** : Free
+4. Variables d'environnement :
+
+| Variable | Exemple |
+|----------|---------|
+| `SPRING_PROFILES_ACTIVE` | `prod` |
+| `SPRING_DATASOURCE_URL` | `jdbc:postgresql://HOST:5432/examgenai` |
+| `SPRING_DATASOURCE_USERNAME` | user Postgres Render |
+| `SPRING_DATASOURCE_PASSWORD` | password Postgres Render |
+| `GEMINI_API_KEY` | clé [AI Studio](https://aistudio.google.com/apikey) |
+| `APP_CORS_ALLOWED_ORIGINS` | `https://votre-front.vercel.app,http://localhost:5173` |
+| `FILE_UPLOAD_DIR` | `/tmp/uploads` |
+
+> Convertir l'URL Render `postgres://...` en JDBC : `jdbc:postgresql://HOST:5432/DB`.
+
+5. Déployer, puis tester : `https://VOTRE-SERVICE.onrender.com/api/courses`
+
+Le plan Free met le service en veille après inactivité (~15 min) : le 1er appel peut être lent.
+
+### Lancer en local avec Docker
+
+```bash
+export GEMINI_API_KEY=votre_cle
+docker compose up --build
+```
+
+API : http://localhost:8080 — Postgres : localhost:5432
+
+Fichiers : `Dockerfile`, `docker-compose.yml`, `.dockerignore`, `application-prod.properties`.
+
 ## Licence
 
 Projet académique — Master 1 GLA 2026.
