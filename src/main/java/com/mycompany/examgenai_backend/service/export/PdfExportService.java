@@ -17,9 +17,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+
+import static com.mycompany.examgenai_backend.service.export.ExportFormatUtils.formatDuration;
+import static com.mycompany.examgenai_backend.service.export.ExportFormatUtils.sanitizeForPdf;
 
 @Service
 @RequiredArgsConstructor
@@ -33,15 +35,15 @@ public class PdfExportService {
     private static final float CONTENT_WIDTH = PAGE_WIDTH - 2 * MARGIN;
     private static final float LINE_HEIGHT = 16f;
     private static final float BOTTOM_LIMIT = MARGIN + 30f;
+    private static final float HEADER_TITLE_LINE = 16f;
+    private static final float HEADER_PAD = 10f;
+    private static final float HEADER_MIN_HEIGHT = 48f;
+    private static final float TITLE_COL_RATIO = 0.72f;
 
     private static final PDFont FONT_TITLE = PDType1Font.HELVETICA_BOLD;
-    private static final PDFont FONT_SUBTITLE = PDType1Font.HELVETICA;
     private static final PDFont FONT_QUESTION = PDType1Font.HELVETICA_BOLD;
     private static final PDFont FONT_OPTION = PDType1Font.HELVETICA;
     private static final PDFont FONT_FOOTER = PDType1Font.HELVETICA_OBLIQUE;
-
-    private static final DateTimeFormatter DATE_FORMATTER =
-            DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
     @Transactional(readOnly = true)
     public byte[] generateExamPdf(Long examId) {
@@ -114,24 +116,64 @@ public class PdfExportService {
         }
 
         void addHeader(Exam exam) throws IOException {
-            drawCenteredText(sanitizeForPdf(exam.getTitle()), FONT_TITLE, 20f, yPosition);
-            yPosition -= 26f;
+            var examTitle = sanitizeForPdf(exam.getTitle());
+            var durationLabel = "Duree : " + formatDuration(exam.getDurationMinutes());
 
-            String chapterName = exam.getChapter() != null
-                    ? exam.getChapter().getTitle()
-                    : "Non specifie";
-            String dateStr = exam.getCreatedAt() != null
-                    ? exam.getCreatedAt().format(DATE_FORMATTER)
-                    : "Non specifiee";
-            String metaLine = "Chapitre: " + sanitizeForPdf(chapterName)
-                    + "   |   Date: " + dateStr
-                    + "   |   Duree: " + exam.getDurationMinutes() + " min";
+            float titleColWidth = CONTENT_WIDTH * TITLE_COL_RATIO;
+            float durationColWidth = CONTENT_WIDTH - titleColWidth;
+            float pad = HEADER_PAD;
+            float titleMaxWidth = titleColWidth - 2 * pad;
+            float titleSize = 12f;
 
-            drawCenteredText(metaLine, FONT_SUBTITLE, 11f, yPosition);
-            yPosition -= 20f;
+            List<String> titleLines = wrapText(examTitle, FONT_TITLE, titleSize, titleMaxWidth);
+            if (titleLines.isEmpty()) {
+                titleLines = List.of("");
+            }
 
-            drawLine(yPosition);
-            yPosition -= 20f;
+            float contentHeight = Math.max(HEADER_TITLE_LINE, titleLines.size() * HEADER_TITLE_LINE);
+            float headerHeight = Math.max(HEADER_MIN_HEIGHT, contentHeight + 2 * pad);
+
+            float boxTop = yPosition;
+            float boxBottom = yPosition - headerHeight;
+            float x1 = MARGIN;
+            float xSplit = MARGIN + titleColWidth;
+
+            contentStream.setLineWidth(1.2f);
+            contentStream.addRect(x1, boxBottom, CONTENT_WIDTH, headerHeight);
+            contentStream.stroke();
+
+            contentStream.moveTo(xSplit, boxBottom);
+            contentStream.lineTo(xSplit, boxTop);
+            contentStream.stroke();
+
+            float titleBlockHeight = titleLines.size() * HEADER_TITLE_LINE;
+            float titleStartY = boxTop - pad - ((headerHeight - 2 * pad - titleBlockHeight) / 2f) - (titleSize * 0.8f);
+            for (int i = 0; i < titleLines.size(); i++) {
+                var line = titleLines.get(i);
+                float lineWidth = FONT_TITLE.getStringWidth(line) / 1000 * titleSize;
+                float x = x1 + pad + Math.max(0, (titleMaxWidth - lineWidth) / 2f);
+                contentStream.beginText();
+                contentStream.setFont(FONT_TITLE, titleSize);
+                contentStream.newLineAtOffset(x, titleStartY - i * HEADER_TITLE_LINE);
+                contentStream.showText(line);
+                contentStream.endText();
+            }
+
+            float durationSize = 11f;
+            float durationWidth = FONT_TITLE.getStringWidth(durationLabel) / 1000 * durationSize;
+            float durationMax = durationColWidth - 2 * pad;
+            float durationX = xSplit + pad;
+            if (durationWidth < durationMax) {
+                durationX = xSplit + (durationColWidth - durationWidth) / 2f;
+            }
+            float durationY = boxBottom + (headerHeight / 2f) - (durationSize / 3f);
+            contentStream.beginText();
+            contentStream.setFont(FONT_TITLE, durationSize);
+            contentStream.newLineAtOffset(durationX, durationY);
+            contentStream.showText(durationLabel);
+            contentStream.endText();
+
+            yPosition = boxBottom - 22f;
         }
 
         void addQuestions(List<Question> questions) throws IOException {
@@ -193,17 +235,6 @@ public class PdfExportService {
             }
         }
 
-        private void drawCenteredText(String text, PDFont font, float fontSize, float y) throws IOException {
-            float textWidth = font.getStringWidth(text) / 1000 * fontSize;
-            float x = (PAGE_WIDTH - textWidth) / 2;
-
-            contentStream.beginText();
-            contentStream.setFont(font, fontSize);
-            contentStream.newLineAtOffset(x, y);
-            contentStream.showText(text);
-            contentStream.endText();
-        }
-
         private void drawLine(float y) throws IOException {
             contentStream.setLineWidth(0.5f);
             contentStream.moveTo(MARGIN, y);
@@ -213,10 +244,22 @@ public class PdfExportService {
 
         private List<String> wrapText(String text, PDFont font, float fontSize, float maxWidth) throws IOException {
             List<String> lines = new ArrayList<>();
+            if (text == null || text.isBlank()) {
+                return lines;
+            }
             String[] words = text.split(" ");
             StringBuilder currentLine = new StringBuilder();
 
             for (String word : words) {
+                // Si un mot dépasse la largeur, on le découpe sans ellipsis.
+                if (font.getStringWidth(word) / 1000 * fontSize > maxWidth) {
+                    if (!currentLine.isEmpty()) {
+                        lines.add(currentLine.toString());
+                        currentLine = new StringBuilder();
+                    }
+                    lines.addAll(splitLongWord(word, font, fontSize, maxWidth));
+                    continue;
+                }
                 String candidate = currentLine.isEmpty() ? word : currentLine + " " + word;
                 float width = font.getStringWidth(candidate) / 1000 * fontSize;
 
@@ -232,21 +275,23 @@ public class PdfExportService {
             }
             return lines;
         }
-    }
 
-    private String sanitizeForPdf(String text) {
-        if (text == null) {
-            return "";
-        }
-        StringBuilder sb = new StringBuilder(text.length());
-        for (int i = 0; i < text.length(); i++) {
-            char c = text.charAt(i);
-            if (c < 256) {
-                sb.append(c);
-            } else {
-                sb.append('?');
+        private List<String> splitLongWord(String word, PDFont font, float fontSize, float maxWidth)
+                throws IOException {
+            List<String> parts = new ArrayList<>();
+            StringBuilder chunk = new StringBuilder();
+            for (int i = 0; i < word.length(); i++) {
+                chunk.append(word.charAt(i));
+                if (font.getStringWidth(chunk.toString()) / 1000 * fontSize > maxWidth && chunk.length() > 1) {
+                    chunk.deleteCharAt(chunk.length() - 1);
+                    parts.add(chunk.toString());
+                    chunk = new StringBuilder().append(word.charAt(i));
+                }
             }
+            if (!chunk.isEmpty()) {
+                parts.add(chunk.toString());
+            }
+            return parts;
         }
-        return sb.toString();
     }
 }
