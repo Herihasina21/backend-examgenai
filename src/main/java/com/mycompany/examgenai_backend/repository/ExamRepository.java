@@ -17,7 +17,14 @@ public interface ExamRepository extends JpaRepository<Exam, Long> {
     List<Exam> findByDifficultyLevel(DifficultyLevel difficultyLevel);
     List<Exam> findByCourseIdAndChapterId(Long courseId, Long chapterId);
 
-    @Query("SELECT e FROM Exam e LEFT JOIN FETCH e.chapter LEFT JOIN FETCH e.questions WHERE e.id = :id")
+    @Query("""
+            SELECT DISTINCT e FROM Exam e
+            LEFT JOIN FETCH e.chapter c
+            LEFT JOIN FETCH c.course
+            LEFT JOIN FETCH e.course
+            LEFT JOIN FETCH e.questions
+            WHERE e.id = :id
+            """)
     Optional<Exam> findByIdWithChapterAndQuestions(@Param("id") Long id);
 
     @Query("SELECT DISTINCT e FROM Exam e LEFT JOIN FETCH e.chapter LEFT JOIN FETCH e.questions WHERE e.chapter.id = :chapterId")

@@ -32,10 +32,23 @@ public class GeminiService {
 
     private static final int MAX_CHAPTER_CHARS = 12_000;
 
+    private static final String MSG_OVERLOAD =
+            "L'IA est temporairement saturée. Réessayez dans quelques minutes.";
+    private static final String MSG_ALL_FAILED =
+            "Aucun modèle Gemini n'est disponible pour le moment. Réessayez plus tard.";
+    private static final String MSG_AUTH =
+            "Clé API Gemini invalide ou non autorisée. Vérifiez la configuration.";
+    private static final String MSG_PARSE =
+            "L'IA a renvoyé une réponse inutilisable. Réessayez la génération.";
+    private static final String MSG_EMPTY =
+            "L'IA n'a généré aucune question. Réessayez avec un autre chapitre ou moins de questions.";
+    private static final String MSG_NETWORK =
+            "Impossible de joindre le service Gemini. Vérifiez votre connexion et réessayez.";
+
     @Value("${gemini.api-key}")
     private String apiKey;
 
-    @Value("${gemini.models:gemini-2.5-flash,gemini-2.0-flash,gemini-1.5-flash,gemini-1.5-flash-8b}")
+    @Value("${gemini.models:gemini-2.5-flash-lite,gemini-flash-lite-latest,gemini-3.1-flash-lite,gemini-3.5-flash-lite}")
     private List<String> models;
 
     @Value("${gemini.api-url:https://generativelanguage.googleapis.com/v1beta}")
@@ -118,37 +131,39 @@ public class GeminiService {
 
                 var responseBody = response.getBody();
                 if (responseBody == null) {
-                    throw new ExternalServiceException("Réponse Gemini vide");
+                    throw new ExternalServiceException("Réponse vide du service d'IA. Réessayez.");
                 }
                 if (responseBody.has("error")) {
                     var errorNode = responseBody.get("error");
-                    var errorMessage = errorNode.path("message").asText("Erreur Gemini inconnue");
+                    var errorMessage = errorNode.path("message").asText("");
                     var errorStatus = errorNode.path("status").asText("");
                     var errorCode = errorNode.path("code").asInt(0);
-                    var failure = new ExternalServiceException("Erreur Gemini : " + errorMessage);
+                    var userMessage = mapApiError(errorCode, errorStatus, errorMessage);
+                    var failure = new ExternalServiceException(userMessage);
                     if (hasNext && isRetryable(errorCode, errorStatus, errorMessage)) {
-                        log.warn("Gemini modèle {} indisponible ({}), essai du suivant", model, errorStatus.isBlank() ? errorCode : errorStatus);
+                        log.warn("Gemini modèle {} indisponible ({}), essai du suivant", model,
+                                errorStatus.isBlank() ? errorCode : errorStatus);
                         lastFailure = failure;
                         continue;
                     }
                     throw failure;
                 }
                 if (!responseBody.has("candidates") || responseBody.get("candidates").isEmpty()) {
-                    throw new ExternalServiceException("Réponse Gemini sans candidat");
+                    throw new ExternalServiceException(MSG_EMPTY);
                 }
 
                 var candidate = responseBody.get("candidates").get(0);
                 if (!candidate.has("content")
                         || !candidate.get("content").has("parts")
                         || candidate.get("content").get("parts").isEmpty()) {
-                    throw new ExternalServiceException("Réponse Gemini invalide (pas de contenu)");
+                    throw new ExternalServiceException(MSG_PARSE);
                 }
 
                 var content = candidate.get("content").get("parts").get(0).get("text").asText();
                 var generated = objectMapper.readValue(content, GeneratedExamResponseDTO.class);
 
                 if (generated.getQuestions() == null || generated.getQuestions().isEmpty()) {
-                    throw new ExternalServiceException("Gemini n'a généré aucune question");
+                    throw new ExternalServiceException(MSG_EMPTY);
                 }
 
                 if (i > 0) {
@@ -157,21 +172,23 @@ public class GeminiService {
                 return generated;
             } catch (RestClientResponseException ex) {
                 lastFailure = ex;
-                if (hasNext && isRetryable(ex.getStatusCode().value(), null, ex.getResponseBodyAsString())) {
-                    log.warn("Gemini modèle {} a renvoyé HTTP {}, essai du suivant", model, ex.getStatusCode().value());
+                var status = ex.getStatusCode().value();
+                var bodyText = ex.getResponseBodyAsString();
+                if (hasNext && isRetryable(status, null, bodyText)) {
+                    log.warn("Gemini modèle {} a renvoyé HTTP {}, essai du suivant", model, status);
                     continue;
                 }
-                throw new ExternalServiceException("Erreur lors de l'appel Gemini : " + ex.getMessage(), ex);
+                throw new ExternalServiceException(mapHttpError(status, bodyText), ex);
             } catch (RestClientException ex) {
-                throw new ExternalServiceException("Erreur lors de l'appel Gemini : " + ex.getMessage(), ex);
+                throw new ExternalServiceException(MSG_NETWORK, ex);
             } catch (ExternalServiceException ex) {
                 throw ex;
             } catch (Exception ex) {
-                throw new ExternalServiceException("Impossible de parser la réponse Gemini : " + ex.getMessage(), ex);
+                throw new ExternalServiceException(MSG_PARSE, ex);
             }
         }
 
-        throw new ExternalServiceException("Tous les modèles Gemini ont échoué", lastFailure);
+        throw new ExternalServiceException(MSG_ALL_FAILED, lastFailure);
     }
 
     private List<String> resolveModels() {
@@ -188,9 +205,34 @@ public class GeminiService {
             }
         }
         if (resolved.isEmpty()) {
-            throw new ExternalServiceException("Aucun modèle Gemini configuré (gemini.models)");
+            throw new ExternalServiceException("Aucun modèle Gemini configuré. Vérifiez gemini.models.");
         }
         return resolved;
+    }
+
+    private String mapHttpError(int status, String body) {
+        if (status == HttpStatus.UNAUTHORIZED.value() || status == HttpStatus.FORBIDDEN.value()) {
+            return MSG_AUTH;
+        }
+        if (isRetryable(status, null, body)) {
+            return MSG_OVERLOAD;
+        }
+        return "La génération a échoué. Réessayez dans quelques instants.";
+    }
+
+    private String mapApiError(int code, String status, String message) {
+        if (code == HttpStatus.UNAUTHORIZED.value() || code == HttpStatus.FORBIDDEN.value()
+                || "PERMISSION_DENIED".equalsIgnoreCase(status)
+                || "UNAUTHENTICATED".equalsIgnoreCase(status)) {
+            return MSG_AUTH;
+        }
+        if (isRetryable(code, status, message)) {
+            return MSG_OVERLOAD;
+        }
+        if (message != null && !message.isBlank() && message.length() < 180) {
+            return "Erreur Gemini : " + message;
+        }
+        return "La génération a échoué. Réessayez dans quelques instants.";
     }
 
     private boolean isRetryable(int httpOrApiCode, String status, String bodyOrMessage) {

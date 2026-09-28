@@ -7,22 +7,24 @@ import com.mycompany.examgenai_backend.exception.ResourceNotFoundException;
 import com.mycompany.examgenai_backend.repository.ExamRepository;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.xwpf.usermodel.*;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTTcPr;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.STBorder;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.STVerticalJc;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.time.format.DateTimeFormatter;
+import java.math.BigInteger;
 import java.util.List;
+
+import static com.mycompany.examgenai_backend.service.export.ExportFormatUtils.formatDuration;
 
 @Service
 @RequiredArgsConstructor
 public class DocxExportService {
 
     private final ExamRepository examRepository;
-
-    private static final DateTimeFormatter DATE_FORMATTER =
-            DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
     @Transactional(readOnly = true)
     public byte[] generateExamDocx(Long examId) {
@@ -32,7 +34,7 @@ public class DocxExportService {
 
         try (XWPFDocument document = new XWPFDocument()) {
 
-            addCoverPage(document, exam);
+            addFramedHeader(document, exam);
             addQuestionsSection(document, exam.getQuestions());
             addAnswerKeySection(document, exam.getQuestions());
 
@@ -45,69 +47,79 @@ public class DocxExportService {
         }
     }
 
-    private void addCoverPage(XWPFDocument document, Exam exam) {
-        // Marge haute pour centrer le titre.
-        for (int i = 0; i < 6; i++) {
-            document.createParagraph();
+    private void addFramedHeader(XWPFDocument document, Exam exam) {
+        var durationLabel = "Durée : " + formatDuration(exam.getDurationMinutes());
+        var title = exam.getTitle() != null ? exam.getTitle() : "";
+
+        XWPFTable table = document.createTable(1, 2);
+        table.setWidth("100%");
+
+        XWPFTableRow row = table.getRow(0);
+        row.setHeight(900);
+
+        XWPFTableCell left = row.getCell(0);
+        XWPFTableCell right = row.getCell(1);
+
+        styleHeaderCell(left, 7200);
+        styleHeaderCell(right, 2800);
+
+        setCellText(left, title, true, 13, ParagraphAlignment.CENTER);
+        setCellText(right, durationLabel, true, 11, ParagraphAlignment.CENTER);
+
+        document.createParagraph();
+    }
+
+    private void styleHeaderCell(XWPFTableCell cell, long widthTwips) {
+        cell.setVerticalAlignment(XWPFTableCell.XWPFVertAlign.CENTER);
+        CTTcPr tcPr = cell.getCTTc().isSetTcPr() ? cell.getCTTc().getTcPr() : cell.getCTTc().addNewTcPr();
+        var borders = tcPr.isSetTcBorders() ? tcPr.getTcBorders() : tcPr.addNewTcBorders();
+        setBorder(borders.isSetTop() ? borders.getTop() : borders.addNewTop());
+        setBorder(borders.isSetBottom() ? borders.getBottom() : borders.addNewBottom());
+        setBorder(borders.isSetLeft() ? borders.getLeft() : borders.addNewLeft());
+        setBorder(borders.isSetRight() ? borders.getRight() : borders.addNewRight());
+        if (!tcPr.isSetVAlign()) {
+            tcPr.addNewVAlign().setVal(STVerticalJc.CENTER);
         }
-
-        XWPFParagraph titleParagraph = document.createParagraph();
-        titleParagraph.setAlignment(ParagraphAlignment.CENTER);
-        XWPFRun titleRun = titleParagraph.createRun();
-        titleRun.setText(exam.getTitle());
-        titleRun.setBold(true);
-        titleRun.setFontSize(28);
-        titleRun.setFontFamily("Calibri");
-
-        XWPFParagraph subtitleParagraph = document.createParagraph();
-        subtitleParagraph.setAlignment(ParagraphAlignment.CENTER);
-        subtitleParagraph.setSpacingBefore(300);
-        XWPFRun subtitleRun = subtitleParagraph.createRun();
-        subtitleRun.setText("Examen genere par ExamGenAI");
-        subtitleRun.setItalic(true);
-        subtitleRun.setFontSize(14);
-        subtitleRun.setColor("666666");
-
-        String chapterName = exam.getChapter() != null
-                ? exam.getChapter().getTitle()
-                : "Non specifie";
-        String dateStr = exam.getCreatedAt() != null
-                ? exam.getCreatedAt().format(DATE_FORMATTER)
-                : "Non specifiee";
-
-        XWPFParagraph metaParagraph = document.createParagraph();
-        metaParagraph.setAlignment(ParagraphAlignment.CENTER);
-        metaParagraph.setSpacingBefore(600);
-        addMetaLine(metaParagraph, "Chapitre : " + chapterName);
-        addMetaLineBreak(metaParagraph);
-        addMetaLine(metaParagraph, "Date : " + dateStr);
-        addMetaLineBreak(metaParagraph);
-        addMetaLine(metaParagraph, "Duree : " + exam.getDurationMinutes() + " minutes");
-        addMetaLineBreak(metaParagraph);
-        addMetaLine(metaParagraph, "Nombre de questions : " + exam.getQuestions().size());
-
-        XWPFParagraph pageBreak = document.createParagraph();
-        pageBreak.createRun().addBreak(BreakType.PAGE);
+        var tcW = tcPr.isSetTcW() ? tcPr.getTcW() : tcPr.addNewTcW();
+        tcW.setW(BigInteger.valueOf(widthTwips));
     }
 
-    private void addMetaLine(XWPFParagraph paragraph, String text) {
-        XWPFRun run = paragraph.createRun();
-        run.setText(text);
-        run.setFontSize(12);
+    private void setBorder(org.openxmlformats.schemas.wordprocessingml.x2006.main.CTBorder border) {
+        border.setVal(STBorder.SINGLE);
+        border.setSz(BigInteger.valueOf(12));
+        border.setColor("000000");
     }
 
-    private void addMetaLineBreak(XWPFParagraph paragraph) {
-        paragraph.createRun().addBreak();
+    private void setCellText(XWPFTableCell cell, String text, boolean bold, int fontSize,
+                             ParagraphAlignment alignment) {
+        if (!cell.getParagraphs().isEmpty()) {
+            XWPFParagraph p = cell.getParagraphs().get(0);
+            p.setAlignment(alignment);
+            while (!p.getRuns().isEmpty()) {
+                p.removeRun(0);
+            }
+            XWPFRun run = p.createRun();
+            run.setText(text == null ? "" : text);
+            run.setBold(bold);
+            run.setFontSize(fontSize);
+            run.setFontFamily("Calibri");
+        } else {
+            addCellLine(cell, text, bold, fontSize, alignment);
+        }
+    }
+
+    private void addCellLine(XWPFTableCell cell, String text, boolean bold, int fontSize,
+                             ParagraphAlignment alignment) {
+        XWPFParagraph p = cell.addParagraph();
+        p.setAlignment(alignment);
+        XWPFRun run = p.createRun();
+        run.setText(text == null ? "" : text);
+        run.setBold(bold);
+        run.setFontSize(fontSize);
+        run.setFontFamily("Calibri");
     }
 
     private void addQuestionsSection(XWPFDocument document, List<Question> questions) {
-        XWPFParagraph sectionTitle = document.createParagraph();
-        XWPFRun sectionTitleRun = sectionTitle.createRun();
-        sectionTitleRun.setText("Questions");
-        sectionTitleRun.setBold(true);
-        sectionTitleRun.setFontSize(18);
-        sectionTitle.setSpacingAfter(200);
-
         int index = 1;
         for (Question question : questions) {
             addSingleQuestion(document, question, index);
@@ -154,7 +166,6 @@ public class DocxExportService {
         run.setFontSize(11);
     }
 
-    // Lignes de réponse pour question ouverte.
     private void addAnswerLines(XWPFDocument document) {
         for (int i = 0; i < 3; i++) {
             XWPFParagraph paragraph = document.createParagraph();
@@ -167,7 +178,7 @@ public class DocxExportService {
     private void addAnswerKeySection(XWPFDocument document, List<Question> questions) {
         XWPFParagraph sectionTitle = document.createParagraph();
         XWPFRun sectionTitleRun = sectionTitle.createRun();
-        sectionTitleRun.setText("Corrige");
+        sectionTitleRun.setText("Corrigé");
         sectionTitleRun.setBold(true);
         sectionTitleRun.setFontSize(18);
         sectionTitle.setSpacingAfter(200);
@@ -178,7 +189,7 @@ public class DocxExportService {
             answerParagraph.setSpacingBefore(150);
 
             XWPFRun numberRun = answerParagraph.createRun();
-            numberRun.setText(index + ". Reponse : ");
+            numberRun.setText(index + ". Réponse : ");
             numberRun.setBold(true);
             numberRun.setFontSize(12);
 
